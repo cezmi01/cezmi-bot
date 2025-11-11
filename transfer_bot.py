@@ -437,28 +437,29 @@ class BybitAdapter(BaseExchange):
         """Get balance from UNIFIED account"""
         sym = symbol.upper()
 
-        balance_data, balance_status = await self._get(session, "/v5/asset/all-balance", {})
+        balance_data, balance_status = await self._get(
+            session,
+            "/v5/asset/transfer/query-account-coins-balance",
+            {"accountType": "UNIFIED", "coin": sym},
+        )
 
         unified_available = Decimal("0")
         if balance_status == 200 and balance_data.get("retCode") == 0:
-            for item in balance_data.get("result", []):
-                if item.get("accountType") == "UNIFIED":
-                    for coin in item.get("coin", []):
-                        if coin.get("coin", "").upper() == sym:
-                            try:
-                                unified_available = Decimal(str(coin.get("transferBalance", "0")))
-                            except Exception:
-                                unified_available = Decimal("0")
-                            write_log(
-                                {
-                                    "exchange": self.name,
-                                    "symbol": sym,
-                                    "note": "UNIFIED_BALANCE",
-                                    "transferBalance": str(unified_available),
-                                }
-                            )
-                            break
-                if unified_available > 0:
+            coins = balance_data.get("result", {}).get("balance", [])
+            for coin in coins:
+                if coin.get("coin", "").upper() == sym:
+                    try:
+                        unified_available = Decimal(str(coin.get("transferBalance", "0")))
+                    except Exception:
+                        unified_available = Decimal("0")
+                    write_log(
+                        {
+                            "exchange": self.name,
+                            "symbol": sym,
+                            "note": "UNIFIED_BALANCE",
+                            "transferBalance": str(unified_available),
+                        }
+                    )
                     break
 
         if unified_available > 0:
@@ -467,23 +468,27 @@ class BybitAdapter(BaseExchange):
 
         funding_data, funding_status = await self._get(
             session,
-            "/v5/asset/transfer/query-account-coin-balance",
+            "/v5/asset/transfer/query-account-coins-balance",
             {"accountType": "FUND", "coin": sym},
         )
         if funding_status == 200 and funding_data.get("retCode") == 0:
-            fund_available = Decimal(str(funding_data.get("result", {}).get("availableToWithdraw", "0")))
-            if fund_available > 0:
-                self._last_balance_account = "FUND"
-                write_log(
-                    {
-                        "exchange": self.name,
-                        "symbol": sym,
-                        "balance": str(fund_available),
-                        "account": "FUND",
-                        "source": "availableToWithdraw",
-                    }
-                )
-                return fund_available
+            coins = funding_data.get("result", {}).get("balance", [])
+            for coin in coins:
+                if coin.get("coin", "").upper() == sym:
+                    fund_available = Decimal(str(coin.get("transferBalance", "0")))
+                    if fund_available > 0:
+                        self._last_balance_account = "FUND"
+                        write_log(
+                            {
+                                "exchange": self.name,
+                                "symbol": sym,
+                                "balance": str(fund_available),
+                                "account": "FUND",
+                                "source": "transferBalance",
+                            }
+                        )
+                        return fund_available
+                    break
 
         self._last_balance_account = None
         write_log({"exchange": self.name, "symbol": sym, "note": "NO_BALANCE"})
