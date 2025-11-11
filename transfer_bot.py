@@ -682,6 +682,16 @@ class OKXAdapter(BaseExchange):
             else:
                 entries.append(item)
 
+        write_log(
+            {
+                "exchange": self.name,
+                "symbol": symbol.upper(),
+                "note": "OKX_CHAIN_CHECK",
+                "network_request": want_raw,
+                "entries": [e.get("chain") for e in entries],
+            }
+        )
+
         for ch in entries:
             can_wd = str(ch.get("canWd")).lower() == "true"
             if not can_wd:
@@ -696,14 +706,40 @@ class OKXAdapter(BaseExchange):
                 if normalized_want in cleaned_chain or cleaned_chain in normalized_want:
                     chain = chain_name
                     fee = ch.get("minFee", "0")
+                    write_log(
+                        {
+                            "exchange": self.name,
+                            "symbol": symbol.upper(),
+                            "note": "OKX_CHAIN_MATCH",
+                            "selected_chain": chain,
+                            "match": normalized_want,
+                        }
+                    )
                     break
                 if want_raw and want_raw.lower() == str(ch.get("name", "")).lower():
                     chain = chain_name
                     fee = ch.get("minFee", "0")
+                    write_log(
+                        {
+                            "exchange": self.name,
+                            "symbol": symbol.upper(),
+                            "note": "OKX_CHAIN_NAME_MATCH",
+                            "selected_chain": chain,
+                            "match_name": want_raw,
+                        }
+                    )
                     break
             else:
                 chain = chain_name
                 fee = ch.get("minFee", "0")
+                write_log(
+                    {
+                        "exchange": self.name,
+                        "symbol": symbol.upper(),
+                        "note": "OKX_CHAIN_FALLBACK_FIRST",
+                        "selected_chain": chain,
+                    }
+                )
                 break
             if fallback is None:
                 fallback = ch
