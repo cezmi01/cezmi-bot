@@ -671,19 +671,31 @@ class OKXAdapter(BaseExchange):
             data1 = await r1.json(content_type=None)
 
         chain, fee = None, "0"
-        want = (network or "").upper()
+        want = (network or "").strip().upper()
+        fallback = None
         for d in data1.get("data", []):
             for ch in d.get("chains", []):
-                chn = ch.get("chain", "").upper()
-                if want in chn and ch.get("canWd") == "true":
-                    chain = ch.get("chain")
+                if ch.get("canWd") != "true":
+                    continue
+                chain_name = ch.get("chain", "")
+                if not chain_name:
+                    continue
+                chain_upper = chain_name.upper()
+                if want and want in chain_upper:
+                    chain = chain_name
                     fee = ch.get("minFee", "0")
                     break
+                if fallback is None:
+                    fallback = ch
             if chain:
                 break
 
+        if not chain and fallback:
+            chain = fallback.get("chain")
+            fee = fallback.get("minFee", "0")
+
         if not chain:
-            return {"error": "chain_not_found"}, 400
+            return {"error": "chain_not_found", "available": data1}, 400
 
         body = {
             "ccy": symbol.upper(),
