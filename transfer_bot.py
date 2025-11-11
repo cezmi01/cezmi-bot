@@ -671,17 +671,30 @@ class OKXAdapter(BaseExchange):
             data1 = await r1.json(content_type=None)
 
         chain, fee = None, "0"
-        want = (network or "").strip().upper()
+        want_raw = (network or "").strip()
+        want = want_raw.upper()
         fallback = None
         for d in data1.get("data", []):
             for ch in d.get("chains", []):
-                if ch.get("canWd") != "true":
+                can_wd = str(ch.get("canWd")).lower() == "true"
+                if not can_wd:
                     continue
                 chain_name = ch.get("chain", "")
                 if not chain_name:
                     continue
                 chain_upper = chain_name.upper()
-                if want and want in chain_upper:
+                cleaned_chain = chain_upper.replace(" ", "").replace("-", "")
+                if want:
+                    normalized_want = want.replace(" ", "").replace("-", "")
+                    if normalized_want in cleaned_chain or cleaned_chain in normalized_want:
+                        chain = chain_name
+                        fee = ch.get("minFee", "0")
+                        break
+                    if want_raw and want_raw.lower() == ch.get("name", "").lower():
+                        chain = chain_name
+                        fee = ch.get("minFee", "0")
+                        break
+                else:
                     chain = chain_name
                     fee = ch.get("minFee", "0")
                     break
