@@ -674,34 +674,39 @@ class OKXAdapter(BaseExchange):
         want_raw = (network or "").strip()
         want = want_raw.upper()
         fallback = None
-        for d in data1.get("data", []):
-            for ch in d.get("chains", []):
-                can_wd = str(ch.get("canWd")).lower() == "true"
-                if not can_wd:
-                    continue
-                chain_name = ch.get("chain", "")
-                if not chain_name:
-                    continue
-                chain_upper = chain_name.upper()
-                cleaned_chain = chain_upper.replace(" ", "").replace("-", "")
-                if want:
-                    normalized_want = want.replace(" ", "").replace("-", "")
-                    if normalized_want in cleaned_chain or cleaned_chain in normalized_want:
-                        chain = chain_name
-                        fee = ch.get("minFee", "0")
-                        break
-                    if want_raw and want_raw.lower() == ch.get("name", "").lower():
-                        chain = chain_name
-                        fee = ch.get("minFee", "0")
-                        break
-                else:
+        entries = []
+        for item in data1.get("data", []):
+            chains_list = item.get("chains")
+            if isinstance(chains_list, list) and chains_list:
+                entries.extend(chains_list)
+            else:
+                entries.append(item)
+
+        for ch in entries:
+            can_wd = str(ch.get("canWd")).lower() == "true"
+            if not can_wd:
+                continue
+            chain_name = ch.get("chain", "")
+            if not chain_name:
+                continue
+            chain_upper = chain_name.upper()
+            cleaned_chain = chain_upper.replace(" ", "").replace("-", "")
+            if want:
+                normalized_want = want.replace(" ", "").replace("-", "")
+                if normalized_want in cleaned_chain or cleaned_chain in normalized_want:
                     chain = chain_name
                     fee = ch.get("minFee", "0")
                     break
-                if fallback is None:
-                    fallback = ch
-            if chain:
+                if want_raw and want_raw.lower() == str(ch.get("name", "")).lower():
+                    chain = chain_name
+                    fee = ch.get("minFee", "0")
+                    break
+            else:
+                chain = chain_name
+                fee = ch.get("minFee", "0")
                 break
+            if fallback is None:
+                fallback = ch
 
         if not chain and fallback:
             chain = fallback.get("chain")
