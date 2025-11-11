@@ -439,24 +439,31 @@ class BybitAdapter(BaseExchange):
 
         balance_data, balance_status = await self._get(session, "/v5/asset/all-balance", {})
 
+        unified_available = Decimal("0")
         if balance_status == 200 and balance_data.get("retCode") == 0:
             for item in balance_data.get("result", []):
                 if item.get("accountType") == "UNIFIED":
                     for coin in item.get("coin", []):
                         if coin.get("coin", "").upper() == sym:
-                            transferable = Decimal(str(coin.get("transferBalance", "0")))
-                            if transferable > 0:
-                                self._last_balance_account = "UNIFIED"
-                                write_log(
-                                    {
-                                        "exchange": self.name,
-                                        "symbol": sym,
-                                        "balance": str(transferable),
-                                        "account": "UNIFIED",
-                                        "source": "transferBalance",
-                                    }
-                                )
-                                return transferable
+                            try:
+                                unified_available = Decimal(str(coin.get("transferBalance", "0")))
+                            except Exception:
+                                unified_available = Decimal("0")
+                            write_log(
+                                {
+                                    "exchange": self.name,
+                                    "symbol": sym,
+                                    "note": "UNIFIED_BALANCE",
+                                    "transferBalance": str(unified_available),
+                                }
+                            )
+                            break
+                if unified_available > 0:
+                    break
+
+        if unified_available > 0:
+            self._last_balance_account = "UNIFIED"
+            return unified_available
 
         funding_data, funding_status = await self._get(
             session,
