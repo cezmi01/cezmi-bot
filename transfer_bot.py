@@ -881,9 +881,19 @@ async def run_withdraw_flow(exchange_name: str, coins: list[dict], q: Queue):
 
                 if isinstance(data, dict):
                     ret_code = data.get("retCode")
-                    ret_msg = data.get("retMsg", "")
+                    ret_msg = data.get("retMsg") or data.get("msg") or data.get("message", "")
+
+                    success = False
 
                     if ret_code == 0:
+                        success = True
+                    elif ret_code is None and status in (200, 201, 202):
+                        if data.get("success") is True:
+                            success = True
+                        elif any(key in data for key in ("id", "withdrawId", "applyId", "data")):
+                            success = True
+
+                    if success:
                         q.put(f"{symbol}: ✅ BAŞARILI")
                         write_log(
                             {
@@ -903,6 +913,7 @@ async def run_withdraw_flow(exchange_name: str, coins: list[dict], q: Queue):
                                 "status": "error",
                                 "retCode": ret_code,
                                 "retMsg": ret_msg,
+                                "response": data,
                             }
                         )
                 else:
