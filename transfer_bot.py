@@ -882,17 +882,17 @@ async def run_withdraw_flow(exchange_name: str, coins: list[dict], q: Queue):
                 data, status = await adapter.withdraw(s, symbol, network, address, memo, amt)
 
                 if isinstance(data, dict):
-                    ret_code = data.get("retCode")
+                    ret_code = data.get("retCode", data.get("code"))
                     ret_msg = data.get("retMsg") or data.get("msg") or data.get("message", "")
 
                     success = False
 
-                    if ret_code == 0:
+                    if ret_code in (0, "0", "success"):
                         success = True
                     elif ret_code is None and status in (200, 201, 202):
                         if data.get("success") is True:
                             success = True
-                        elif any(key in data for key in ("id", "withdrawId", "applyId", "data")):
+                        elif any(key in data for key in ("id", "withdrawId", "applyId", "data", "result")):
                             success = True
 
                     if success:
@@ -907,7 +907,7 @@ async def run_withdraw_flow(exchange_name: str, coins: list[dict], q: Queue):
                             }
                         )
                     else:
-                        q.put(f"{symbol}: ❌ HATA - {ret_msg} (code: {ret_code})")
+                        q.put(f"{symbol}: ❌ HATA - {ret_msg or json.dumps(data)} (code: {ret_code})")
                         write_log(
                             {
                                 "exchange": adapter.name,
