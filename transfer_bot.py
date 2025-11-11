@@ -386,7 +386,18 @@ class BybitAdapter(BaseExchange):
             for acc in accounts:
                 for coin in acc.get("coin", []):
                     if coin.get("coin", "").upper() == sym:
-                        bal = Decimal(str(coin.get("walletBalance", "0")))
+                        raw_value = None
+                        for field in (
+                            "availableToWithdraw",
+                            "withdrawAvailable",
+                            "availableBalance",
+                            "walletBalance",
+                        ):
+                            val = coin.get(field)
+                            if val not in (None, "", "null"):
+                                raw_value = val
+                                break
+                        bal = Decimal(str(raw_value or "0"))
                         if bal > 0:
                             write_log(
                                 {
@@ -394,6 +405,11 @@ class BybitAdapter(BaseExchange):
                                     "symbol": sym,
                                     "balance": str(bal),
                                     "account": "UNIFIED",
+                                    "raw_fields": {
+                                        "availableToWithdraw": coin.get("availableToWithdraw"),
+                                        "availableBalance": coin.get("availableBalance"),
+                                        "walletBalance": coin.get("walletBalance"),
+                                    },
                                 }
                             )
                             return bal
