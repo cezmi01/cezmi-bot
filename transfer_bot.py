@@ -134,7 +134,7 @@ class BybitAdapter(BaseExchange):
             return 0
         msg = data.get("retMsg") or ""
         if data.get("retCode") == 131001:
-            match = re.search(r"wait at least\\s*(\\d+)\\s*seconds", msg, re.IGNORECASE)
+            match = re.search(r"wait at least\s*(\d+)\s*seconds", msg, re.IGNORECASE)
             if match:
                 try:
                     return int(match.group(1)) + 1
