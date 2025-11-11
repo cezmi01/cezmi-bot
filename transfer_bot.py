@@ -75,6 +75,7 @@ class BybitAdapter(BaseExchange):
     API = "https://api.bybit.com"
     RECV_WINDOW = "60000"
     MAX_RETRIES = 3
+    WITHDRAW_MIN_INTERVAL = 12
 
     # Coin konfigürasyonu (fee ve chain bilgileri)
     COINS = {
@@ -89,6 +90,8 @@ class BybitAdapter(BaseExchange):
         self.key = os.getenv("BYBIT_KEY", "").strip()
         self.secret = os.getenv("BYBIT_SECRET", "").strip()
         self.server_time_offset = 0  # Server ile local time farkı
+        self._withdraw_lock = None
+        self._last_withdraw_request = 0.0
 
     async def _sync_time(self, session):
         """Server time'ı al ve offset hesapla"""
@@ -141,6 +144,26 @@ class BybitAdapter(BaseExchange):
                 except ValueError:
                     pass
         return 0
+
+    async def _get_withdraw_lock(self):
+        if self._withdraw_lock is None:
+            self._withdraw_lock = asyncio.Lock()
+        return self._withdraw_lock
+
+    async def _wait_for_withdraw_slot(self):
+        if self._last_withdraw_request <= 0:
+            return
+        elapsed = time.monotonic() - self._last_withdraw_request
+        if elapsed < self.WITHDRAW_MIN_INTERVAL:
+            wait_for = self.WITHDRAW_MIN_INTERVAL - elapsed
+            write_log(
+                {
+                    "exchange": self.name,
+                    "note": "withdraw_spacing_wait",
+                    "wait_seconds": round(wait_for, 2),
+                }
+            )
+            await asyncio.sleep(wait_for)
 
     async def _get(self, session, endpoint, params=None):
         """GET request"""
@@ -402,7 +425,13 @@ class BybitAdapter(BaseExchange):
         if memo not in (None, "", "null", "None"):
             body["tag"] = str(memo)
 
-        return await self._post(session, "/v5/asset/withdraw/create", body)
+        lock = await self._get_withdraw_lock()
+        async with lock:
+            await self._wait_for_withdraw_slot()
+            try:
+                return await self._post(session, "/v5/asset/withdraw/create", body)
+            finally:
+                self._last_withdraw_request = time.monotonic()
 
 
 # ═══════════════════════════════════════════════════════════════
