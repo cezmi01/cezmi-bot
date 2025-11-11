@@ -8,6 +8,7 @@ Multi-Exchange Çoklu Coin Çekim Botu (GUI) - BYBIT FIX
 """
 
 import os
+import re
 import json
 import hmac
 import time
@@ -73,7 +74,7 @@ class BybitAdapter(BaseExchange):
     name = "BYBIT"
     API = "https://api.bybit.com"
     RECV_WINDOW = "60000"
-    TIMESTAMP_ERROR_CODES = {131001, 131002}
+    MAX_RETRIES = 3
 
     # Coin konfigürasyonu (fee ve chain bilgileri)
     COINS = {
@@ -119,10 +120,33 @@ class BybitAdapter(BaseExchange):
         """HMAC-SHA256 signature"""
         return hmac.new(self.secret.encode("utf-8"), payload.encode("utf-8"), "sha256").hexdigest()
 
+    def _is_timestamp_error(self, data: dict) -> bool:
+        if not isinstance(data, dict):
+            return False
+        code = data.get("retCode")
+        msg = (data.get("retMsg") or "").lower()
+        if code == 131002:
+            return True
+        return "timestamp" in msg
+
+    def _cooldown_seconds(self, data: dict) -> int:
+        if not isinstance(data, dict):
+            return 0
+        msg = data.get("retMsg") or ""
+        if data.get("retCode") == 131001:
+            match = re.search(r"wait at least\\s*(\\d+)\\s*seconds", msg, re.IGNORECASE)
+            if match:
+                try:
+                    return int(match.group(1)) + 1
+                except ValueError:
+                    pass
+        return 0
+
     async def _get(self, session, endpoint, params=None):
         """GET request"""
         attempt = 0
-        while True:
+        last_response = None
+        while attempt < self.MAX_RETRIES:
             attempt += 1
             ts = self._ts()
             params_with_meta = dict(params or {})
@@ -151,20 +175,37 @@ class BybitAdapter(BaseExchange):
                 if not isinstance(data, dict):
                     data = {"raw": data}
 
-                if (
-                    attempt == 1
-                    and resp.status == 200
-                    and data.get("retCode") in self.TIMESTAMP_ERROR_CODES
-                ):
+                last_response = (data, resp.status)
+
+                if attempt < self.MAX_RETRIES and resp.status == 200 and self._is_timestamp_error(data):
                     await self._sync_time(session)
                     continue
 
+                if attempt < self.MAX_RETRIES:
+                    delay = self._cooldown_seconds(data)
+                    if delay:
+                        write_log(
+                            {
+                                "exchange": self.name,
+                                "note": "cooldown_wait",
+                                "endpoint": endpoint,
+                                "delay_seconds": delay,
+                            }
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+
                 return data, resp.status
+
+        if last_response is not None:
+            return last_response
+        return {"retCode": -1, "retMsg": "unhandled_get_error"}, 500
 
     async def _post(self, session, endpoint, body: dict):
         """POST request"""
         attempt = 0
-        while True:
+        last_response = None
+        while attempt < self.MAX_RETRIES:
             attempt += 1
             ts = self._ts()
             body_with_meta = dict(body)
@@ -218,15 +259,31 @@ class BybitAdapter(BaseExchange):
                     }
                 )
 
-                if (
-                    attempt == 1
-                    and resp.status == 200
-                    and data.get("retCode") in self.TIMESTAMP_ERROR_CODES
-                ):
+                last_response = (data, resp.status)
+
+                if attempt < self.MAX_RETRIES and resp.status == 200 and self._is_timestamp_error(data):
                     await self._sync_time(session)
                     continue
 
+                if attempt < self.MAX_RETRIES:
+                    delay = self._cooldown_seconds(data)
+                    if delay:
+                        write_log(
+                            {
+                                "exchange": self.name,
+                                "action": "POST_COOLDOWN_WAIT",
+                                "endpoint": endpoint,
+                                "delay_seconds": delay,
+                            }
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+
                 return data, resp.status
+
+        if last_response is not None:
+            return last_response
+        return {"retCode": -1, "retMsg": "unhandled_post_error"}, 500
 
     async def preflight(self):
         """Connection & permission check"""
