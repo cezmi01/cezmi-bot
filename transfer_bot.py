@@ -93,6 +93,18 @@ class BybitAdapter(BaseExchange):
         self._withdraw_lock = None
         self._last_withdraw_request = 0.0
 
+    def _normalize_chain(self, symbol: str, chain: str | None) -> str:
+        sym = symbol.upper()
+        value = (chain or "").strip()
+        if not value:
+            return sym
+        upper_val = value.upper()
+        if "-" in value:
+            return upper_val
+        if upper_val == sym:
+            return sym
+        return f"{sym}-{upper_val}"
+
     async def _sync_time(self, session):
         """Server time'ı al ve offset hesapla"""
         try:
@@ -388,7 +400,7 @@ class BybitAdapter(BaseExchange):
         sym = symbol.upper()
 
         cfg = self.COINS.get(sym, {"chain": None, "fee": "0.001", "min": "0.01"})
-        chain = (network or cfg.get("chain") or sym).upper()
+        chain = self._normalize_chain(sym, network or cfg.get("chain"))
         fee = Decimal(cfg["fee"])
         min_amount = Decimal(cfg["min"])
 
