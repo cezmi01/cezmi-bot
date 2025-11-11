@@ -613,6 +613,9 @@ class BinanceAdapter(BaseExchange):
 class OKXAdapter(BaseExchange):
     name = "OKX"
     API = "https://www.okx.com"
+    ACCOUNT_FUNDING = "6"
+    ACCOUNT_TRADING = "18"
+    MIN_DECIMAL_STEP = Decimal("0.00000001")
 
     def __init__(self):
         self.key = os.getenv("OKX_KEY", "")
@@ -751,6 +754,9 @@ class OKXAdapter(BaseExchange):
         if not chain:
             return {"error": "chain_not_found", "available": data1}, 400
 
+        fee_decimal = Decimal(str(fee or "0"))
+        await self._ensure_funding_liquidity(session, symbol, amount, fee_decimal)
+
         body = {
             "ccy": symbol.upper(),
             "amt": str(amount),
@@ -765,6 +771,99 @@ class OKXAdapter(BaseExchange):
         h2 = self._headers(ts2, self._sign(ts2, "POST", path2, b))
         async with session.post(f"{self.API}{path2}", headers=h2, data=b) as r:
             return await r.json(content_type=None), r.status
+
+    async def _ensure_funding_liquidity(self, session, symbol: str, amount: Decimal, fee: Decimal):
+        total_required = (amount + fee)
+        if total_required <= 0:
+            return
+
+        total_required = total_required.quantize(self.MIN_DECIMAL_STEP, rounding=ROUND_DOWN)
+        ccy = symbol.upper()
+
+        # Query current funding balance
+        path_balance = f"/api/v5/asset/balances?ccy={ccy}"
+        ts_balance = self._ts()
+        h_balance = self._headers(ts_balance, self._sign(ts_balance, "GET", path_balance))
+        funding_available = Decimal("0")
+        async with session.get(f"{self.API}{path_balance}", headers=h_balance) as resp:
+            try:
+                data = await resp.json(content_type=None)
+            except Exception:
+                data = {"raw": await resp.text()}
+
+        if isinstance(data, dict) and data.get("code") in ("0", 0):
+            for entry in data.get("data", []):
+                if entry.get("ccy", "").upper() == ccy:
+                    try:
+                        funding_available = Decimal(str(entry.get("availBal", "0")))
+                    except Exception:
+                        funding_available = Decimal("0")
+                    break
+
+        write_log(
+            {
+                "exchange": self.name,
+                "symbol": ccy,
+                "note": "OKX_FUNDING_BALANCE",
+                "funding_available": str(funding_available),
+                "required": str(total_required),
+            }
+        )
+
+        if funding_available >= total_required:
+            return
+
+        transfer_amount = (total_required - funding_available)
+        if transfer_amount <= 0:
+            return
+
+        transfer_amount = transfer_amount.quantize(self.MIN_DECIMAL_STEP, rounding=ROUND_DOWN)
+
+        transfer_body = {
+            "type": "0",
+            "ccy": ccy,
+            "amt": str(transfer_amount),
+            "from": self.ACCOUNT_TRADING,
+            "to": self.ACCOUNT_FUNDING,
+        }
+
+        ts_transfer = self._ts()
+        path_transfer = "/api/v5/asset/transfer"
+        body_json = json.dumps(transfer_body, separators=(",", ":"))
+        headers_transfer = self._headers(ts_transfer, self._sign(ts_transfer, "POST", path_transfer, body_json))
+
+        write_log(
+            {
+                "exchange": self.name,
+                "symbol": ccy,
+                "note": "OKX_TRANSFER_INIT",
+                "amount": transfer_body["amt"],
+                "from": self.ACCOUNT_TRADING,
+                "to": self.ACCOUNT_FUNDING,
+            }
+        )
+
+        async with session.post(f"{self.API}{path_transfer}", headers=headers_transfer, data=body_json) as resp:
+            try:
+                transfer_data = await resp.json(content_type=None)
+            except Exception:
+                transfer_data = {"raw": await resp.text()}
+
+        write_log(
+            {
+                "exchange": self.name,
+                "symbol": ccy,
+                "note": "OKX_TRANSFER_RESPONSE",
+                "status": resp.status,
+                "response": transfer_data,
+            }
+        )
+
+        success_codes = {"0", 0, "00000"}
+        if not (resp.status == 200 and transfer_data.get("code") in success_codes):
+            raise RuntimeError(
+                f"OKX transfer failed: HTTP {resp.status}, code={transfer_data.get('code')}, msg={transfer_data.get('msg')}"
+            )
 
 
 # ═══════════════════════════════════════════════════════════════
