@@ -17,6 +17,7 @@ import asyncio
 import logging
 import threading
 import hashlib
+import uuid
 from decimal import Decimal, ROUND_DOWN
 from pathlib import Path
 from queue import Queue, Empty
@@ -92,6 +93,7 @@ class BybitAdapter(BaseExchange):
         self.server_time_offset = 0  # Server ile local time farkı
         self._withdraw_lock = None
         self._last_withdraw_request = 0.0
+        self._last_balance_account = None
 
     def _normalize_chain(self, symbol: str, chain: str | None) -> str:
         sym = symbol.upper()
@@ -201,6 +203,64 @@ class BybitAdapter(BaseExchange):
                 }
             )
             await asyncio.sleep(wait_for)
+
+    async def _ensure_fund_liquidity(self, session, symbol: str, required: Decimal):
+        """Ensure Funding account holds enough balance to cover withdrawal (amount + fee)."""
+        required = required.quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
+        if required <= 0:
+            return
+
+        sym = symbol.upper()
+
+        data, status = await self._get(
+            session,
+            "/v5/asset/transfer/query-account-coin-balance",
+            {"accountType": "FUND", "coin": sym},
+        )
+
+        fund_available = Decimal(str(data.get("result", {}).get("availableToWithdraw", "0"))) if status == 200 else Decimal("0")
+
+        if fund_available >= required:
+            self._last_balance_account = "FUND"
+            return
+
+        transfer_body = {
+            "transferId": str(uuid.uuid4()),
+            "coin": sym,
+            "amount": str(required),
+            "fromAccountType": "UNIFIED",
+            "toAccountType": "FUND",
+        }
+
+        write_log(
+            {
+                "exchange": self.name,
+                "symbol": sym,
+                "action": "TRANSFER_PREP",
+                "required": str(required),
+                "fund_available": str(fund_available),
+                "from": "UNIFIED",
+                "to": "FUND",
+            }
+        )
+
+        resp, resp_status = await self._post(session, "/v5/asset/transfer/inter-transfer", transfer_body)
+
+        if resp_status != 200 or resp.get("retCode") != 0:
+            raise RuntimeError(
+                f"Bybit transfer failed: HTTP {resp_status}, retCode={resp.get('retCode')}, retMsg={resp.get('retMsg')}"
+            )
+
+        self._last_balance_account = "FUND"
+        write_log(
+            {
+                "exchange": self.name,
+                "symbol": sym,
+                "action": "TRANSFER_OK",
+                "transferId": resp.get("result", {}).get("transferId"),
+                "amount": str(required),
+            }
+        )
 
     async def _get(self, session, endpoint, params=None):
         """GET request"""
@@ -399,6 +459,7 @@ class BybitAdapter(BaseExchange):
                                 break
                         bal = Decimal(str(raw_value or "0"))
                         if bal > 0:
+                            self._last_balance_account = "UNIFIED"
                             write_log(
                                 {
                                     "exchange": self.name,
@@ -420,18 +481,20 @@ class BybitAdapter(BaseExchange):
             {"accountType": "FUND", "coin": sym},
         )
         if status2 == 200 and data2.get("retCode") == 0:
-            bal = Decimal(str(data2.get("result", {}).get("balance", "0")))
-            if bal > 0:
+            fund_available = Decimal(str(data2.get("result", {}).get("availableToWithdraw", "0")))
+            if fund_available > 0:
+                self._last_balance_account = "FUND"
                 write_log(
                     {
                         "exchange": self.name,
                         "symbol": sym,
-                        "balance": str(bal),
+                        "balance": str(fund_available),
                         "account": "FUND",
                     }
                 )
-                return bal
+                return fund_available
 
+        self._last_balance_account = None
         write_log({"exchange": self.name, "symbol": sym, "note": "NO_BALANCE"})
 
         return Decimal("0")
@@ -447,15 +510,6 @@ class BybitAdapter(BaseExchange):
 
         final_amount = amount - fee
 
-        if final_amount < min_amount:
-            return (
-                {
-                    "retCode": -1,
-                    "retMsg": f"Insufficient. Balance: {amount}, Fee: {fee}, Min: {min_amount}",
-                },
-                400,
-            )
-
         write_log(
             {
                 "exchange": self.name,
@@ -465,8 +519,18 @@ class BybitAdapter(BaseExchange):
                 "fee": str(fee),
                 "final_amount": str(final_amount),
                 "chain": chain,
+                "threshold": str(min_amount),
             }
         )
+
+        if final_amount < min_amount:
+            return (
+                {
+                    "retCode": -1,
+                    "retMsg": f"Insufficient. Balance: {amount}, Fee: {fee}, Min: {min_amount}",
+                },
+                400,
+            )
 
         body = {
             "coin": sym,
@@ -478,9 +542,12 @@ class BybitAdapter(BaseExchange):
         if memo not in (None, "", "null", "None"):
             body["tag"] = str(memo)
 
+        total_required = amount
+
         lock = await self._get_withdraw_lock()
         async with lock:
             await self._wait_for_withdraw_slot()
+            await self._ensure_fund_liquidity(session, sym, total_required)
             try:
                 return await self._post(session, "/v5/asset/withdraw/create", body)
             finally:
