@@ -98,12 +98,37 @@ class BybitAdapter(BaseExchange):
         value = (chain or "").strip()
         if not value:
             return sym
-        upper_val = value.upper()
+        alias_map = {
+            "erc20": f"{sym}-ERC20",
+            "eth-erc20": f"{sym}-ERC20",
+            "ethereum": f"{sym}-ERC20",
+            "ethereum mainnet": f"{sym}-ERC20",
+            "ethereum (erc20)": f"{sym}-ERC20",
+            "arbitrum": f"{sym}-ARBITRUM",
+            "arbitrum one": f"{sym}-ARBITRUM",
+            "polygon": f"{sym}-POLYGON",
+            "polygon (matic)": f"{sym}-POLYGON",
+            "matic": f"{sym}-POLYGON",
+            "bsc": f"{sym}-BSC",
+            "bnb smart chain": f"{sym}-BSC",
+            "bep20": f"{sym}-BSC",
+        }
+        key = value.lower()
+        if key in alias_map:
+            return alias_map[key]
         if "-" in value:
-            return upper_val
+            return value.upper().replace(" ", "")
+        if "(" in value and ")" in value:
+            inner = value[value.find("(") + 1 : value.rfind(")")]
+            if inner.strip():
+                return self._normalize_chain(symbol, inner.strip())
+        upper_val = value.upper().strip()
         if upper_val == sym:
             return sym
-        return f"{sym}-{upper_val}"
+        clean = re.sub(r"[^A-Z0-9]", "", upper_val)
+        if not clean:
+            return sym
+        return f"{sym}-{clean}"
 
     async def _sync_time(self, session):
         """Server time'ı al ve offset hesapla"""
