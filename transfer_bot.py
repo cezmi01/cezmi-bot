@@ -755,11 +755,28 @@ class OKXAdapter(BaseExchange):
             return {"error": "chain_not_found", "available": data1}, 400
 
         fee_decimal = Decimal(str(fee or "0"))
-        await self._ensure_funding_liquidity(session, symbol, amount, fee_decimal)
+        available_amount = amount
+        withdraw_amount = (available_amount - fee_decimal).quantize(self.MIN_DECIMAL_STEP, rounding=ROUND_DOWN)
+
+        write_log(
+            {
+                "exchange": self.name,
+                "symbol": symbol.upper(),
+                "note": "OKX_WITHDRAW_CALC",
+                "available_amount": str(available_amount),
+                "fee": str(fee_decimal),
+                "withdraw_amount": str(withdraw_amount),
+            }
+        )
+
+        if withdraw_amount <= 0:
+            return {"error": "amount_not_enough_after_fee"}, 400
+
+        await self._ensure_funding_liquidity(session, symbol, available_amount)
 
         body = {
             "ccy": symbol.upper(),
-            "amt": str(amount),
+            "amt": str(withdraw_amount),
             "dest": "4",
             "toAddr": address if memo in (None, "", "null", "None") else f"{address}:{memo}",
             "chain": chain,
@@ -772,8 +789,8 @@ class OKXAdapter(BaseExchange):
         async with session.post(f"{self.API}{path2}", headers=h2, data=b) as r:
             return await r.json(content_type=None), r.status
 
-    async def _ensure_funding_liquidity(self, session, symbol: str, amount: Decimal, fee: Decimal):
-        total_required = (amount + fee)
+    async def _ensure_funding_liquidity(self, session, symbol: str, required_amount: Decimal):
+        total_required = required_amount
         if total_required <= 0:
             return
 
