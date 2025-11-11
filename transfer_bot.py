@@ -616,6 +616,8 @@ class OKXAdapter(BaseExchange):
     ACCOUNT_FUNDING = "6"
     ACCOUNT_TRADING = "18"
     MIN_DECIMAL_STEP = Decimal("0.00000001")
+    TRANSFER_SETTLE_ATTEMPTS = 5
+    TRANSFER_SETTLE_DELAY = 1.0
 
     def __init__(self):
         self.key = os.getenv("OKX_KEY", "")
@@ -797,25 +799,28 @@ class OKXAdapter(BaseExchange):
         total_required = total_required.quantize(self.MIN_DECIMAL_STEP, rounding=ROUND_DOWN)
         ccy = symbol.upper()
 
-        # Query current funding balance
-        path_balance = f"/api/v5/asset/balances?ccy={ccy}"
-        ts_balance = self._ts()
-        h_balance = self._headers(ts_balance, self._sign(ts_balance, "GET", path_balance))
-        funding_available = Decimal("0")
-        async with session.get(f"{self.API}{path_balance}", headers=h_balance) as resp:
-            try:
-                data = await resp.json(content_type=None)
-            except Exception:
-                data = {"raw": await resp.text()}
+        async def get_funding_available() -> Decimal:
+            path_balance = f"/api/v5/asset/balances?ccy={ccy}"
+            ts_balance = self._ts()
+            h_balance = self._headers(ts_balance, self._sign(ts_balance, "GET", path_balance))
+            async with session.get(f"{self.API}{path_balance}", headers=h_balance) as resp:
+                try:
+                    data = await resp.json(content_type=None)
+                except Exception:
+                    data = {"raw": await resp.text()}
 
-        if isinstance(data, dict) and data.get("code") in ("0", 0):
-            for entry in data.get("data", []):
-                if entry.get("ccy", "").upper() == ccy:
-                    try:
-                        funding_available = Decimal(str(entry.get("availBal", "0")))
-                    except Exception:
-                        funding_available = Decimal("0")
-                    break
+            available = Decimal("0")
+            if isinstance(data, dict) and data.get("code") in ("0", 0):
+                for entry in data.get("data", []):
+                    if entry.get("ccy", "").upper() == ccy:
+                        try:
+                            available = Decimal(str(entry.get("availBal", "0")))
+                        except Exception:
+                            available = Decimal("0")
+                        break
+            return available
+
+        funding_available = await get_funding_available()
 
         write_log(
             {
@@ -866,21 +871,43 @@ class OKXAdapter(BaseExchange):
             except Exception:
                 transfer_data = {"raw": await resp.text()}
 
-        write_log(
-            {
-                "exchange": self.name,
-                "symbol": ccy,
-                "note": "OKX_TRANSFER_RESPONSE",
-                "status": resp.status,
-                "response": transfer_data,
-            }
-        )
-
-        success_codes = {"0", 0, "00000"}
-        if not (resp.status == 200 and transfer_data.get("code") in success_codes):
-            raise RuntimeError(
-                f"OKX transfer failed: HTTP {resp.status}, code={transfer_data.get('code')}, msg={transfer_data.get('msg')}"
+            write_log(
+                {
+                    "exchange": self.name,
+                    "symbol": ccy,
+                    "note": "OKX_TRANSFER_RESPONSE",
+                    "status": resp.status,
+                    "response": transfer_data,
+                }
             )
+
+            success_codes = {"0", 0, "00000"}
+            if not (resp.status == 200 and transfer_data.get("code") in success_codes):
+                raise RuntimeError(
+                    f"OKX transfer failed: HTTP {resp.status}, code={transfer_data.get('code')}, msg={transfer_data.get('msg')}"
+                )
+
+        # Wait for transfer to settle
+        for attempt in range(self.TRANSFER_SETTLE_ATTEMPTS):
+            if attempt > 0:
+                await asyncio.sleep(self.TRANSFER_SETTLE_DELAY)
+            funding_available = await get_funding_available()
+            write_log(
+                {
+                    "exchange": self.name,
+                    "symbol": ccy,
+                    "note": "OKX_FUNDING_BALANCE_RECHECK",
+                    "attempt": attempt + 1,
+                    "funding_available": str(funding_available),
+                    "required": str(total_required),
+                }
+            )
+            if funding_available >= total_required:
+                return
+
+        raise RuntimeError(
+            f"OKX funding transfer did not settle in time (required {total_required}, available {funding_available})"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════
