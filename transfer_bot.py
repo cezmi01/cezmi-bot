@@ -437,51 +437,34 @@ class BybitAdapter(BaseExchange):
         """Get balance from UNIFIED account"""
         sym = symbol.upper()
 
-        data, status = await self._get(
-            session, "/v5/account/wallet-balance", {"accountType": "UNIFIED"}
-        )
+        balance_data, balance_status = await self._get(session, "/v5/asset/all-balance", {})
 
-        if status == 200 and data.get("retCode") == 0:
-            accounts = data.get("result", {}).get("list", [])
-            for acc in accounts:
-                for coin in acc.get("coin", []):
-                    if coin.get("coin", "").upper() == sym:
-                        raw_value = None
-                        for field in (
-                            "availableToWithdraw",
-                            "withdrawAvailable",
-                            "availableBalance",
-                            "walletBalance",
-                        ):
-                            val = coin.get(field)
-                            if val not in (None, "", "null"):
-                                raw_value = val
-                                break
-                        bal = Decimal(str(raw_value or "0"))
-                        if bal > 0:
-                            self._last_balance_account = "UNIFIED"
-                            write_log(
-                                {
-                                    "exchange": self.name,
-                                    "symbol": sym,
-                                    "balance": str(bal),
-                                    "account": "UNIFIED",
-                                    "raw_fields": {
-                                        "availableToWithdraw": coin.get("availableToWithdraw"),
-                                        "availableBalance": coin.get("availableBalance"),
-                                        "walletBalance": coin.get("walletBalance"),
-                                    },
-                                }
-                            )
-                            return bal
+        if balance_status == 200 and balance_data.get("retCode") == 0:
+            for item in balance_data.get("result", []):
+                if item.get("accountType") == "UNIFIED":
+                    for coin in item.get("coin", []):
+                        if coin.get("coin", "").upper() == sym:
+                            transferable = Decimal(str(coin.get("transferBalance", "0")))
+                            if transferable > 0:
+                                self._last_balance_account = "UNIFIED"
+                                write_log(
+                                    {
+                                        "exchange": self.name,
+                                        "symbol": sym,
+                                        "balance": str(transferable),
+                                        "account": "UNIFIED",
+                                        "source": "transferBalance",
+                                    }
+                                )
+                                return transferable
 
-        data2, status2 = await self._get(
+        funding_data, funding_status = await self._get(
             session,
             "/v5/asset/transfer/query-account-coin-balance",
             {"accountType": "FUND", "coin": sym},
         )
-        if status2 == 200 and data2.get("retCode") == 0:
-            fund_available = Decimal(str(data2.get("result", {}).get("availableToWithdraw", "0")))
+        if funding_status == 200 and funding_data.get("retCode") == 0:
+            fund_available = Decimal(str(funding_data.get("result", {}).get("availableToWithdraw", "0")))
             if fund_available > 0:
                 self._last_balance_account = "FUND"
                 write_log(
@@ -490,6 +473,7 @@ class BybitAdapter(BaseExchange):
                         "symbol": sym,
                         "balance": str(fund_available),
                         "account": "FUND",
+                        "source": "availableToWithdraw",
                     }
                 )
                 return fund_available
