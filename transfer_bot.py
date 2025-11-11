@@ -76,7 +76,7 @@ class BybitAdapter(BaseExchange):
     API = "https://api.bybit.com"
     RECV_WINDOW = "60000"
     MAX_RETRIES = 3
-    WITHDRAW_MIN_INTERVAL = 12
+    WITHDRAW_MIN_INTERVAL = 0
 
     # Coin konfigürasyonu (fee ve chain bilgileri)
     COINS = {
@@ -190,6 +190,8 @@ class BybitAdapter(BaseExchange):
         return self._withdraw_lock
 
     async def _wait_for_withdraw_slot(self):
+        if self.WITHDRAW_MIN_INTERVAL <= 0:
+            return
         if self._last_withdraw_request <= 0:
             return
         elapsed = time.monotonic() - self._last_withdraw_request
