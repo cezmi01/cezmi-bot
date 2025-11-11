@@ -128,7 +128,7 @@ class BybitAdapter(BaseExchange):
             return False
         code = data.get("retCode")
         msg = (data.get("retMsg") or "").lower()
-        if code == 131002:
+        if code == 131002 and "timestamp" in msg:
             return True
         return "timestamp" in msg
 
