@@ -387,8 +387,8 @@ class BybitAdapter(BaseExchange):
         """Withdraw coins"""
         sym = symbol.upper()
 
-        cfg = self.COINS.get(sym, {"chain": network or sym, "fee": "0.001", "min": "0.01"})
-        chain = cfg["chain"]
+        cfg = self.COINS.get(sym, {"chain": None, "fee": "0.001", "min": "0.01"})
+        chain = (network or cfg.get("chain") or sym).upper()
         fee = Decimal(cfg["fee"])
         min_amount = Decimal(cfg["min"])
 
