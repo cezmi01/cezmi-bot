@@ -924,11 +924,11 @@ DEPOSIT_EXCHANGES = ["BTCTurk", "Paribu"]
 
 
 # ═══════════════════════════════════════════════════════════════
-#                         TRANSFER FLOW
+#                         WITHDRAW FLOW
 # ═══════════════════════════════════════════════════════════════
-async def run_transfer_flow(source_exchange: str, target_exchange: str, coins: list[dict], q: Queue):
-    adapter = ADAPTERS[source_exchange]()
-    q.put(f"📍 Kaynak: {source_exchange}")
+async def run_withdraw_flow(exchange_name: str, target_exchange: str, coins: list[dict], q: Queue):
+    adapter = ADAPTERS[exchange_name]()
+    q.put(f"📍 Kaynak: {exchange_name}")
     q.put(f"📍 Alıcı: {target_exchange}")
 
     try:
@@ -1000,7 +1000,6 @@ async def run_transfer_flow(source_exchange: str, target_exchange: str, coins: l
                             {
                                 "exchange": adapter.name,
                                 "symbol": symbol,
-                                "target_exchange": target_exchange,
                                 "status": "success",
                                 "amount": str(amt),
                                 "response": data,
@@ -1012,7 +1011,6 @@ async def run_transfer_flow(source_exchange: str, target_exchange: str, coins: l
                             {
                                 "exchange": adapter.name,
                                 "symbol": symbol,
-                                "target_exchange": target_exchange,
                                 "status": "error",
                                 "retCode": ret_code,
                                 "retMsg": ret_msg,
@@ -1026,7 +1024,6 @@ async def run_transfer_flow(source_exchange: str, target_exchange: str, coins: l
                         {
                             "exchange": adapter.name,
                             "symbol": symbol,
-                            "target_exchange": target_exchange,
                             "status": "success" if ok else "error",
                             "http_status": status,
                             "response": data,
@@ -1039,7 +1036,6 @@ async def run_transfer_flow(source_exchange: str, target_exchange: str, coins: l
                     {
                         "exchange": adapter.name,
                         "symbol": symbol,
-                        "target_exchange": target_exchange,
                         "status": "exception",
                         "error": str(e),
                     }
@@ -1130,7 +1126,7 @@ class App(tk.Tk):
 
         def runner():
             try:
-                asyncio.run(run_transfer_flow(source_ex, target_ex, coins, self.queue))
+                asyncio.run(run_withdraw_flow(source_ex, target_ex, coins, self.queue))
             except Exception as e:
                 self.queue.put(f"⛔ Fatal: {e}")
             finally:
