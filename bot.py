@@ -842,14 +842,33 @@ class OKXAdapter(BaseExchange):
 
         await self._ensure_funding_liquidity(session, symbol, available_amount)
 
+        # OKX chain formatı: "COIN-CHAIN" (örn: "ETH-ETH", "USDT-ERC20")
+        # Eğer chain zaten bu formatta değilse, symbol-chain formatına çevir
+        okx_chain = chain
+        if "-" not in chain and chain.upper() != symbol.upper():
+            okx_chain = f"{symbol.upper()}-{chain}"
+        elif "-" not in chain:
+            okx_chain = f"{symbol.upper()}-{chain}"
+        
         body = {
             "ccy": symbol.upper(),
             "amt": str(withdraw_amount),
             "dest": "4",
             "toAddr": address if memo in (None, "", "null", "None") else f"{address}:{memo}",
-            "chain": chain,
+            "chain": okx_chain,
             "fee": fee,
         }
+        
+        write_log(
+            {
+                "exchange": self.name,
+                "symbol": symbol.upper(),
+                "note": "OKX_WITHDRAW_BODY",
+                "original_chain": chain,
+                "okx_chain": okx_chain,
+                "body": body,
+            }
+        )
         b = json.dumps(body, separators=(",", ":"))
         ts2 = self._ts()
         path2 = "/api/v5/asset/withdrawal"
