@@ -46,11 +46,31 @@ OKX_PASSPHRASE=your_passphrase
     "symbol": "USDT",
     "network": "TRC20",
     "btcturk": {
-      "address": "BTCTURK_USDT_ADRESINIZ_BURAYA",
+      "symbol": "USDT",
+      "network": "TRC20",
+      "address": "BTCTURK_USDT_TRC20_ADRESINIZ_BURAYA",
       "memo": null
     },
     "paribu": {
-      "address": "PARIBU_USDT_ADRESINIZ_BURAYA",
+      "symbol": "USDT",
+      "network": "TRC20",
+      "address": "PARIBU_USDT_TRC20_ADRESINIZ_BURAYA",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "USDT",
+    "network": "ERC20",
+    "btcturk": {
+      "symbol": "USDT",
+      "network": "ERC20",
+      "address": "BTCTURK_USDT_ERC20_ADRESINIZ_BURAYA",
+      "memo": null
+    },
+    "paribu": {
+      "symbol": "USDT",
+      "network": "ERC20",
+      "address": "PARIBU_USDT_ERC20_ADRESINIZ_BURAYA",
       "memo": null
     }
   },
@@ -58,10 +78,14 @@ OKX_PASSPHRASE=your_passphrase
     "symbol": "BTC",
     "network": "BTC",
     "btcturk": {
+      "symbol": "BTC",
+      "network": "BTC",
       "address": "BTCTURK_BTC_ADRESINIZ_BURAYA",
       "memo": null
     },
     "paribu": {
+      "symbol": "BTC",
+      "network": "BTC",
       "address": "PARIBU_BTC_ADRESINIZ_BURAYA",
       "memo": null
     }
@@ -71,10 +95,13 @@ OKX_PASSPHRASE=your_passphrase
 
 **Önemli**: 
 - Her coin için **hem `btcturk` hem `paribu`** bölümlerini doldurun
+- **Her borsa için ayrı `symbol` ve `network` belirtebilirsiniz** (Paribu'da coin ismi farklı olabilir)
+- `symbol`: İlgili borsada coin'in adı (Paribu'da farklı olabilir)
+- `network`: İlgili borsada coin'in network'ü (Paribu'da farklı olabilir)
 - `address`: İlgili borsadan aldığınız deposit adresi
-- `network`: Coin'in network'ü (TRC20, BTC, ETH, vb.)
 - `memo`: Eğer coin memo/tag gerektiriyorsa (örn: XRP, XLM), aksi halde `null`
-- GUI'de seçtiğiniz alıcı borsaya göre ilgili adres otomatik kullanılır
+- GUI'de seçtiğiniz alıcı borsaya göre ilgili coin, network ve adres otomatik kullanılır
+- Aynı coin için farklı network'lerde farklı entry'ler oluşturabilirsiniz (örn: USDT TRC20 ve USDT ERC20)
 
 ## Kullanım
 

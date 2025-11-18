@@ -941,48 +941,55 @@ async def run_transfer_flow(source_exchange: str, target_exchange: str, coins: l
             return
 
     async def work(coin: dict):
-        symbol = coin["symbol"].upper()
-        network = coin.get("network", "")
+        # Genel coin bilgileri (fallback için)
+        base_symbol = coin["symbol"].upper()
+        base_network = coin.get("network", "")
         
-        # Target exchange'e göre adres seç
+        # Target exchange'e göre adres ve coin bilgileri seç
         target_key = target_exchange.lower()  # "BTCTurk" -> "btcturk", "Paribu" -> "paribu"
         target_info = coin.get(target_key, {})
         
         if not target_info:
-            q.put(f"{symbol}: ❌ Config'de {target_exchange} adresi bulunamadı")
+            q.put(f"{base_symbol}: ❌ Config'de {target_exchange} bilgisi bulunamadı")
             return
         
+        # Target exchange için coin ve network (varsa, yoksa genel değerleri kullan)
+        target_symbol = target_info.get("symbol", base_symbol).upper()
+        target_network = target_info.get("network", base_network)
         address = target_info.get("address", "").strip()
         memo = target_info.get("memo")
         
         if not address:
-            q.put(f"{symbol}: ❌ Config'de {target_exchange} adresi boş")
+            q.put(f"{base_symbol}: ❌ Config'de {target_exchange} adresi boş")
             return
 
-        q.put(f"{symbol}: 📍 Hedef adres: {address[:10]}... ({target_exchange})")
+        q.put(f"{base_symbol}: 📍 {target_exchange} - Coin: {target_symbol}, Network: {target_network}")
+        q.put(f"{base_symbol}: 📍 Hedef adres: {address[:10]}...")
         if memo:
-            q.put(f"{symbol}: 📝 Memo/Tag: {memo}")
+            q.put(f"{base_symbol}: 📝 Memo/Tag: {memo}")
 
         timeout = aiohttp.ClientTimeout(total=60)
         async with aiohttp.ClientSession(timeout=timeout) as s:
-            # Kaynak borsadan bakiye kontrolü
+            # Kaynak borsadan bakiye kontrolü (genel symbol ile)
             try:
-                bal = await source_adapter.get_balance(s, symbol)
-                q.put(f"{symbol}: 💰 Bakiye = {bal}")
+                bal = await source_adapter.get_balance(s, base_symbol)
+                q.put(f"{base_symbol}: 💰 Bakiye = {bal}")
             except Exception as e:
-                q.put(f"{symbol}: ❌ Bakiye hatası: {e}")
+                q.put(f"{base_symbol}: ❌ Bakiye hatası: {e}")
                 return
 
             if bal <= 0:
-                q.put(f"{symbol}: ⚪ Atlandı (bakiye 0)")
+                q.put(f"{base_symbol}: ⚪ Atlandı (bakiye 0)")
                 return
 
-            # Çekim işlemi
+            # Çekim işlemi (target network kullanılır)
             amt = floor_amount(bal)
-            q.put(f"{symbol}: 🚀 {source_exchange} → {target_exchange} transfer başlatılıyor... ({amt})")
+            q.put(f"{base_symbol}: 🚀 {source_exchange} → {target_exchange} transfer başlatılıyor... ({amt})")
+            q.put(f"{base_symbol}: 📤 Kaynak: {base_symbol} ({base_network}) → Alıcı: {target_symbol} ({target_network})")
 
             try:
-                data, status = await source_adapter.withdraw(s, symbol, network, address, memo, amt)
+                # Withdraw için target_symbol ve target_network kullanılır
+                data, status = await source_adapter.withdraw(s, target_symbol, target_network, address, memo, amt)
 
                 if isinstance(data, dict):
                     ret_code = data.get("retCode", data.get("code"))
