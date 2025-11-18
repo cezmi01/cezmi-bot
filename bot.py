@@ -927,69 +927,58 @@ DEPOSIT_EXCHANGES = ["BTCTurk", "Paribu"]
 #                         TRANSFER FLOW
 # ═══════════════════════════════════════════════════════════════
 async def run_transfer_flow(source_exchange: str, target_exchange: str, coins: list[dict], q: Queue):
-    source_adapter = ADAPTERS[source_exchange]()
-    
+    adapter = ADAPTERS[source_exchange]()
     q.put(f"📍 Kaynak: {source_exchange}")
     q.put(f"📍 Alıcı: {target_exchange}")
 
     try:
-        await source_adapter.preflight()
-        q.put(f"✅ {source_exchange} bağlantı OK")
+        await adapter.preflight()
+        q.put("✅ Bağlantı OK")
     except Exception as e:
-        q.put(f"⛔ {source_exchange} preflight hata: {e}")
+        q.put(f"⛔ Preflight hata: {e}")
         if REQUIRE_STATIC_IP:
             return
 
     async def work(coin: dict):
-        # Genel coin bilgileri (fallback için)
-        base_symbol = coin["symbol"].upper()
-        base_network = coin.get("network", "")
+        symbol = coin["symbol"].upper()
+        network = coin.get("network", "")
         
         # Target exchange'e göre adres ve coin bilgileri seç
         target_key = target_exchange.lower()  # "BTCTurk" -> "btcturk", "Paribu" -> "paribu"
         target_info = coin.get(target_key, {})
         
         if not target_info:
-            q.put(f"{base_symbol}: ❌ Config'de {target_exchange} bilgisi bulunamadı")
+            q.put(f"{symbol}: ❌ Config'de {target_exchange} bilgisi bulunamadı")
             return
         
         # Target exchange için coin ve network (varsa, yoksa genel değerleri kullan)
-        target_symbol = target_info.get("symbol", base_symbol).upper()
-        target_network = target_info.get("network", base_network)
+        target_symbol = target_info.get("symbol", symbol).upper()
+        target_network = target_info.get("network", network)
         address = target_info.get("address", "").strip()
         memo = target_info.get("memo")
         
         if not address:
-            q.put(f"{base_symbol}: ❌ Config'de {target_exchange} adresi boş")
+            q.put(f"{symbol}: ❌ Config'de {target_exchange} adresi boş")
             return
-
-        q.put(f"{base_symbol}: 📍 {target_exchange} - Coin: {target_symbol}, Network: {target_network}")
-        q.put(f"{base_symbol}: 📍 Hedef adres: {address[:10]}...")
-        if memo:
-            q.put(f"{base_symbol}: 📝 Memo/Tag: {memo}")
 
         timeout = aiohttp.ClientTimeout(total=60)
         async with aiohttp.ClientSession(timeout=timeout) as s:
-            # Kaynak borsadan bakiye kontrolü (genel symbol ile)
             try:
-                bal = await source_adapter.get_balance(s, base_symbol)
-                q.put(f"{base_symbol}: 💰 Bakiye = {bal}")
+                bal = await adapter.get_balance(s, symbol)
+                q.put(f"{symbol}: Bakiye = {bal}")
             except Exception as e:
-                q.put(f"{base_symbol}: ❌ Bakiye hatası: {e}")
+                q.put(f"{symbol}: ❌ Bakiye hatası: {e}")
                 return
 
             if bal <= 0:
-                q.put(f"{base_symbol}: ⚪ Atlandı (bakiye 0)")
+                q.put(f"{symbol}: ⚪ Atlandı (bakiye 0)")
                 return
 
-            # Çekim işlemi (target network kullanılır)
             amt = floor_amount(bal)
-            q.put(f"{base_symbol}: 🚀 {source_exchange} → {target_exchange} transfer başlatılıyor... ({amt})")
-            q.put(f"{base_symbol}: 📤 Kaynak: {base_symbol} ({base_network}) → Alıcı: {target_symbol} ({target_network})")
+            q.put(f"{symbol}: 🚀 Çekim başlatılıyor... ({amt})")
 
             try:
-                # Withdraw için target_symbol ve target_network kullanılır
-                data, status = await source_adapter.withdraw(s, target_symbol, target_network, address, memo, amt)
+                data, status = await adapter.withdraw(s, target_symbol, target_network, address, memo, amt)
 
                 if isinstance(data, dict):
                     ret_code = data.get("retCode", data.get("code"))
@@ -1006,27 +995,24 @@ async def run_transfer_flow(source_exchange: str, target_exchange: str, coins: l
                             success = True
 
                     if success:
-                        q.put(f"{base_symbol}: ✅ TRANSFER BAŞARILI ({source_exchange} → {target_exchange})")
+                        q.put(f"{symbol}: ✅ BAŞARILI")
                         write_log(
                             {
-                                "source_exchange": source_adapter.name,
+                                "exchange": adapter.name,
+                                "symbol": symbol,
                                 "target_exchange": target_exchange,
-                                "symbol": base_symbol,
-                                "target_symbol": target_symbol,
                                 "status": "success",
                                 "amount": str(amt),
-                                "address": address[:10] + "..." if address else None,
                                 "response": data,
                             }
                         )
                     else:
-                        q.put(f"{base_symbol}: ❌ HATA - {ret_msg or json.dumps(data)} (code: {ret_code})")
+                        q.put(f"{symbol}: ❌ HATA - {ret_msg or json.dumps(data)} (code: {ret_code})")
                         write_log(
                             {
-                                "source_exchange": source_adapter.name,
+                                "exchange": adapter.name,
+                                "symbol": symbol,
                                 "target_exchange": target_exchange,
-                                "symbol": base_symbol,
-                                "target_symbol": target_symbol,
                                 "status": "error",
                                 "retCode": ret_code,
                                 "retMsg": ret_msg,
@@ -1035,13 +1021,12 @@ async def run_transfer_flow(source_exchange: str, target_exchange: str, coins: l
                         )
                 else:
                     ok = status in (200, 201)
-                    q.put(f"{base_symbol}: {'✅' if ok else '❌'} HTTP {status}")
+                    q.put(f"{symbol}: {'✅' if ok else '❌'} HTTP {status}")
                     write_log(
                         {
-                            "source_exchange": source_adapter.name,
+                            "exchange": adapter.name,
+                            "symbol": symbol,
                             "target_exchange": target_exchange,
-                            "symbol": base_symbol,
-                            "target_symbol": target_symbol,
                             "status": "success" if ok else "error",
                             "http_status": status,
                             "response": data,
@@ -1049,13 +1034,12 @@ async def run_transfer_flow(source_exchange: str, target_exchange: str, coins: l
                     )
 
             except Exception as e:
-                q.put(f"{base_symbol}: ❌ Exception: {e}")
+                q.put(f"{symbol}: ❌ Exception: {e}")
                 write_log(
                     {
-                        "source_exchange": source_adapter.name,
+                        "exchange": adapter.name,
+                        "symbol": symbol,
                         "target_exchange": target_exchange,
-                        "symbol": base_symbol,
-                        "target_symbol": target_symbol,
                         "status": "exception",
                         "error": str(e),
                     }
