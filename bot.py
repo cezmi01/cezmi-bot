@@ -733,12 +733,12 @@ class OKXAdapter(BaseExchange):
         )
 
         # Chain seçimi: OKX API'sinden gelen chain listesinde doğru chain'i bul
-        # OKX API'sinden gelen chain değeri "COIN-CHAIN" formatında olabilir (örn: "ETH-ETH", "ETH-X-Layer")
-        # Veya sadece chain kısmı olabilir (örn: "ETH", "X-Layer")
-        # Öncelik: Tam eşleşme > Chain'in son kısmı eşleşmesi > Fallback
+        # OKX chain formatı: "COIN-CHAIN" (örn: "ETH-ERC20", "ETH-X Layer")
+        # Öncelik: MainNet chain > Tam eşleşme > Chain suffix eşleşmesi > Fallback
         
+        mainnet_match = None
         exact_match = None
-        chain_suffix_match = None
+        chain_suffix_matches = []
         fallback_match = None
         
         for ch in entries:
@@ -747,62 +747,87 @@ class OKXAdapter(BaseExchange):
                 continue
             chain_name = ch.get("chain", "")
             chain_display_name = ch.get("name", "")
+            is_mainnet = ch.get("mainNet", False)
             if not chain_name:
                 continue
             
-            # Chain name'i normalize et
             chain_upper = chain_name.upper()
             
             if want:
-                # 1. Tam eşleşme: Chain name tam olarak network ile eşleşiyor mu?
-                # Örn: network "ETH" ise, chain "ETH" veya "ETH-ETH" olabilir
+                # 1. MainNet chain kontrolü (en öncelikli - ETH için ETH-ERC20)
+                if is_mainnet:
+                    if not mainnet_match:
+                        mainnet_match = ch
+                        write_log(
+                            {
+                                "exchange": self.name,
+                                "symbol": symbol.upper(),
+                                "note": "OKX_CHAIN_MAINNET_MATCH",
+                                "selected_chain": chain_name,
+                                "requested": want_raw,
+                            }
+                        )
+                
+                # 2. Tam eşleşme: Chain name tam olarak network ile eşleşiyor mu?
                 if chain_upper == want:
-                    exact_match = ch
-                    write_log(
-                        {
-                            "exchange": self.name,
-                            "symbol": symbol.upper(),
-                            "note": "OKX_CHAIN_EXACT_MATCH",
-                            "selected_chain": chain_name,
-                            "requested": want_raw,
-                        }
-                    )
-                    break
+                    if not mainnet_match:
+                        exact_match = ch
+                        write_log(
+                            {
+                                "exchange": self.name,
+                                "symbol": symbol.upper(),
+                                "note": "OKX_CHAIN_EXACT_MATCH",
+                                "selected_chain": chain_name,
+                                "requested": want_raw,
+                            }
+                        )
                 
-                # 2. Chain'in son kısmı (tire'den sonrası) network ile eşleşiyor mu?
-                # Örn: network "ETH" ise, chain "ETH-ETH" veya "USDT-ETH" olabilir
+                # 3. Chain'in son kısmı (tire'den sonrası) network ile eşleşiyor mu?
+                # Örn: network "ETH" ise, "ETH-ERC20" → "ERC20" eşleşmez, "ETH-ETH" → "ETH" eşleşir
                 if "-" in chain_name:
-                    chain_suffix = chain_name.split("-")[-1].upper()
-                    if chain_suffix == want:
-                        if not exact_match:
-                            chain_suffix_match = ch
-                            write_log(
-                                {
-                                    "exchange": self.name,
-                                    "symbol": symbol.upper(),
-                                    "note": "OKX_CHAIN_SUFFIX_MATCH",
-                                    "selected_chain": chain_name,
-                                    "chain_suffix": chain_suffix,
-                                    "requested": want_raw,
-                                }
-                            )
+                    chain_suffix = chain_name.split("-")[-1].upper().strip()
+                    # Network ile eşleşen chain suffix'leri topla
+                    if chain_suffix == want or want in chain_suffix or chain_suffix in want:
+                        chain_suffix_matches.append(ch)
                 
-                # 3. Chain display name ile eşleşme
+                # 4. Chain display name ile eşleşme
                 if chain_display_name and want_raw.lower() == chain_display_name.lower():
-                    if not exact_match and not chain_suffix_match:
+                    if not mainnet_match and not exact_match:
                         fallback_match = ch
             else:
-                # Network belirtilmemişse, ilk uygun chain'i al
-                if not fallback_match:
+                # Network belirtilmemişse, mainnet varsa onu, yoksa ilk uygun chain'i al
+                if is_mainnet and not mainnet_match:
+                    mainnet_match = ch
+                elif not fallback_match:
                     fallback_match = ch
         
-        # Öncelik sırası: exact_match > chain_suffix_match > fallback_match
-        if exact_match:
+        # Öncelik sırası: mainnet_match > exact_match > chain_suffix_matches (ilk) > fallback_match
+        if mainnet_match:
+            chain = mainnet_match.get("chain")
+            fee = mainnet_match.get("minFee", "0")
+        elif exact_match:
             chain = exact_match.get("chain")
             fee = exact_match.get("minFee", "0")
-        elif chain_suffix_match:
-            chain = chain_suffix_match.get("chain")
-            fee = chain_suffix_match.get("minFee", "0")
+        elif chain_suffix_matches:
+            # Chain suffix eşleşmeleri arasında mainnet olanı seç, yoksa ilkini
+            selected = None
+            for ch in chain_suffix_matches:
+                if ch.get("mainNet", False):
+                    selected = ch
+                    break
+            if not selected:
+                selected = chain_suffix_matches[0]
+            chain = selected.get("chain")
+            fee = selected.get("minFee", "0")
+            write_log(
+                {
+                    "exchange": self.name,
+                    "symbol": symbol.upper(),
+                    "note": "OKX_CHAIN_SUFFIX_MATCH",
+                    "selected_chain": chain,
+                    "requested": want_raw,
+                }
+            )
         elif fallback_match:
             chain = fallback_match.get("chain")
             fee = fallback_match.get("minFee", "0")
