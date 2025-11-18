@@ -25,7 +25,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-3. `.env` dosyasına API anahtarlarınızı ekleyin:
+3. `.env` dosyasına **kaynak borsa** API anahtarlarınızı ekleyin:
 ```
 # Kaynak borsalar (en az birini doldurun)
 BYBIT_KEY=your_key
@@ -35,29 +35,32 @@ BINANCE_SECRET=your_secret
 OKX_KEY=your_key
 OKX_SECRET=your_secret
 OKX_PASSPHRASE=your_passphrase
-
-# Alıcı borsalar (en az birini doldurun)
-BTCTURK_KEY=your_key
-BTCTURK_SECRET=your_secret
-PARIBU_KEY=your_key
-PARIBU_SECRET=your_secret
 ```
 
-4. `config.json` dosyasını düzenleyin (transfer edilecek coinleri listeleyin):
+**Not**: BTC Turk ve Paribu için API key gerekmez - adresler manuel olarak config.json'da belirtilir.
+
+4. `config.json` dosyasını düzenleyin - **her coin için BTC Turk veya Paribu deposit adresini** ekleyin:
 ```json
 [
   {
     "symbol": "USDT",
-    "network": "TRC20"
+    "network": "TRC20",
+    "address": "TRX_ADRESINIZ_BURAYA",
+    "memo": null
   },
   {
     "symbol": "BTC",
-    "network": "BTC"
+    "network": "BTC",
+    "address": "BTC_ADRESINIZ_BURAYA",
+    "memo": null
   }
 ]
 ```
 
-**Not**: Artık `address` ve `memo` alanlarına gerek yok - bunlar alıcı borsadan otomatik alınır.
+**Önemli**: 
+- `address`: BTC Turk veya Paribu'dan aldığınız deposit adresi
+- `network`: Coin'in network'ü (TRC20, BTC, ETH, vb.)
+- `memo`: Eğer coin memo/tag gerektiriyorsa (örn: XRP, XLM), aksi halde `null`
 
 ## Kullanım
 
@@ -71,7 +74,7 @@ GUI açıldıktan sonra:
 3. "🚀 TRANSFER BAŞLAT" butonuna tıklayın
 
 Bot otomatik olarak:
-- Alıcı borsadan deposit adresini alır
+- Config'deki deposit adresini kullanır
 - Kaynak borsadan bakiyeyi kontrol eder
 - Transfer işlemini başlatır
 

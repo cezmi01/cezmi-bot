@@ -1,14 +1,20 @@
 [
   {
     "symbol": "USDT",
-    "network": "TRC20"
+    "network": "TRC20",
+    "address": "YOUR_BTCTURK_OR_PARIBU_ADDRESS_HERE",
+    "memo": null
   },
   {
     "symbol": "BTC",
-    "network": "BTC"
+    "network": "BTC",
+    "address": "YOUR_BTCTURK_OR_PARIBU_ADDRESS_HERE",
+    "memo": null
   },
   {
     "symbol": "ETH",
-    "network": "ETH"
+    "network": "ETH",
+    "address": "YOUR_BTCTURK_OR_PARIBU_ADDRESS_HERE",
+    "memo": null
   }
 ]
