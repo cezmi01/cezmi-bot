@@ -685,6 +685,34 @@ class OKXAdapter(BaseExchange):
         chain, fee = None, "0"
         want_raw = (network or "").strip()
         want = want_raw.upper()
+        
+        # Eğer network direkt bir chain adı gibi görünüyorsa (örn: "ETH", "X-Layer")
+        # ve bu chain API'de varsa direkt kullan
+        force_chain = None
+        if want_raw:
+            # OKX chain isimleri genelde büyük harfle başlar ve tire içerebilir
+            # Önce tam eşleşme kontrolü yap
+            for item in data1.get("data", []):
+                chains_list = item.get("chains", [])
+                if isinstance(chains_list, list):
+                    for ch in chains_list:
+                        chain_name = ch.get("chain", "")
+                        if chain_name.upper() == want or chain_name == want_raw:
+                            if str(ch.get("canWd")).lower() == "true":
+                                force_chain = chain_name
+                                fee = ch.get("minFee", "0")
+                                write_log(
+                                    {
+                                        "exchange": self.name,
+                                        "symbol": symbol.upper(),
+                                        "note": "OKX_FORCE_CHAIN",
+                                        "chain": force_chain,
+                                        "requested": want_raw,
+                                    }
+                                )
+                                break
+                    if force_chain:
+                        break
         fallback = None
         entries = []
         for item in data1.get("data", []):
@@ -700,7 +728,7 @@ class OKXAdapter(BaseExchange):
                 "symbol": symbol.upper(),
                 "note": "OKX_CHAIN_CHECK",
                 "network_request": want_raw,
-                "entries": [e.get("chain") for e in entries],
+                "entries": [{"chain": e.get("chain"), "name": e.get("name"), "canWd": e.get("canWd")} for e in entries],
             }
         )
 
@@ -761,8 +789,10 @@ class OKXAdapter(BaseExchange):
                 if not fallback:
                     fallback = ch
         
-        # Öncelik sırası: exact_match > partial_match > fallback
-        if exact_match:
+        # Öncelik sırası: force_chain > exact_match > partial_match > fallback
+        if force_chain:
+            chain = force_chain
+        elif exact_match:
             chain = exact_match.get("chain")
             fee = exact_match.get("minFee", "0")
         elif partial_match:
@@ -993,6 +1023,11 @@ async def run_withdraw_flow(exchange_name: str, target_exchange: str, coins: lis
         address = target_info.get("address", "").strip()
         memo = target_info.get("memo")
         
+        # OKX için özel chain belirtilmişse kullan
+        okx_chain = target_info.get("okx_chain")
+        if exchange_name == "OKX" and okx_chain:
+            target_network = okx_chain
+        
         if not address:
             q.put(f"{symbol}: ❌ Config'de {target_exchange} adresi boş")
             return
@@ -1012,6 +1047,9 @@ async def run_withdraw_flow(exchange_name: str, target_exchange: str, coins: lis
 
             amt = floor_amount(bal)
             q.put(f"{symbol}: 🚀 Çekim başlatılıyor... ({amt})")
+            
+            if exchange_name == "OKX" and okx_chain:
+                q.put(f"{symbol}: 📍 OKX Chain: {okx_chain}")
 
             try:
                 data, status = await adapter.withdraw(s, target_symbol, target_network, address, memo, amt)
