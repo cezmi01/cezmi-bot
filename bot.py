@@ -588,7 +588,36 @@ class BybitAdapter(BaseExchange):
         lock = await self._get_withdraw_lock()
         async with lock:
             await self._wait_for_withdraw_slot()
-            await self._ensure_fund_liquidity(session, sym, total_required)
+            
+            # Check current account - if balance is already in FUND, no transfer needed
+            current_account = self._last_balance_account
+            if current_account != "FUND":
+                # Only transfer if balance is in UNIFIED
+                await self._ensure_fund_liquidity(session, sym, total_required)
+            else:
+                # Balance is already in FUND, just verify it's enough
+                fund_data, fund_status = await self._get(
+                    session,
+                    "/v5/asset/transfer/query-account-coin-balance",
+                    {"accountType": "FUND", "coin": sym},
+                )
+                fund_available = Decimal("0")
+                if fund_status == 200 and fund_data.get("retCode") == 0:
+                    fund_available = Decimal(str(fund_data.get("result", {}).get("availableToWithdraw", "0")))
+                
+                if fund_available < total_required:
+                    write_log(
+                        {
+                            "exchange": self.name,
+                            "symbol": sym,
+                            "note": "FUND_INSUFFICIENT",
+                            "required": str(total_required),
+                            "available": str(fund_available),
+                        }
+                    )
+                    # Try to transfer from UNIFIED
+                    await self._ensure_fund_liquidity(session, sym, total_required)
+            
             try:
                 return await self._post(session, "/v5/asset/withdraw/create", body)
             finally:
