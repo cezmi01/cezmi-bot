@@ -851,12 +851,16 @@ class OKXAdapter(BaseExchange):
         await self._ensure_funding_liquidity(session, symbol, available_amount)
 
         # OKX chain formatı: "COIN-CHAIN" (örn: "ETH-ETH", "USDT-ERC20")
-        # Eğer chain zaten bu formatta değilse, symbol-chain formatına çevir
+        # API'den gelen chain değeri zaten "COIN-CHAIN" formatında olabilir veya sadece chain kısmı olabilir
+        # Eğer "-" içermiyorsa, symbol-chain formatına çevir
         okx_chain = chain
-        if "-" not in chain and chain.upper() != symbol.upper():
+        if "-" not in chain:
+            # Chain sadece chain kısmı ise (örn: "ETH"), "COIN-CHAIN" formatına çevir (örn: "ETH-ETH")
             okx_chain = f"{symbol.upper()}-{chain}"
-        elif "-" not in chain:
-            okx_chain = f"{symbol.upper()}-{chain}"
+        elif not chain.startswith(symbol.upper() + "-"):
+            # Chain "COIN-CHAIN" formatında ama farklı coin ile başlıyorsa, symbol ile başlat
+            chain_part = chain.split("-", 1)[-1] if "-" in chain else chain
+            okx_chain = f"{symbol.upper()}-{chain_part}"
         
         body = {
             "ccy": symbol.upper(),
