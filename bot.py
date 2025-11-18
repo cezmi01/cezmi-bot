@@ -498,13 +498,21 @@ class BybitAdapter(BaseExchange):
 
         unified_available = Decimal("0")
         if unified_status == 200 and unified_data.get("retCode") == 0:
-            unified_available = Decimal(str(unified_data.get("result", {}).get("availableToWithdraw", "0")))
+            result = unified_data.get("result", {})
+            # Try multiple possible field names
+            unified_available = Decimal(str(
+                result.get("availableToWithdraw") or 
+                result.get("transferBalance") or 
+                result.get("walletBalance") or 
+                "0"
+            ))
             write_log(
                 {
                     "exchange": self.name,
                     "symbol": sym,
                     "note": "UNIFIED_BALANCE",
                     "availableToWithdraw": str(unified_available),
+                    "raw_result": result,
                 }
             )
 
@@ -521,7 +529,24 @@ class BybitAdapter(BaseExchange):
         
         fund_available = Decimal("0")
         if funding_status == 200 and funding_data.get("retCode") == 0:
-            fund_available = Decimal(str(funding_data.get("result", {}).get("availableToWithdraw", "0")))
+            result = funding_data.get("result", {})
+            # Try multiple possible field names
+            fund_available = Decimal(str(
+                result.get("availableToWithdraw") or 
+                result.get("transferBalance") or 
+                result.get("walletBalance") or 
+                "0"
+            ))
+            write_log(
+                {
+                    "exchange": self.name,
+                    "symbol": sym,
+                    "note": "FUND_BALANCE",
+                    "availableToWithdraw": str(fund_available),
+                    "raw_result": result,
+                }
+            )
+            
             if fund_available > 0:
                 self._last_balance_account = "FUND"
                 write_log(
@@ -536,7 +561,17 @@ class BybitAdapter(BaseExchange):
                 return fund_available
 
         self._last_balance_account = None
-        write_log({"exchange": self.name, "symbol": sym, "note": "NO_BALANCE"})
+        write_log(
+            {
+                "exchange": self.name,
+                "symbol": sym,
+                "note": "NO_BALANCE",
+                "unified_status": unified_status,
+                "fund_status": funding_status,
+                "unified_data": unified_data,
+                "fund_data": funding_data,
+            }
+        )
 
         return Decimal("0")
 
