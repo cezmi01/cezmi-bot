@@ -1,53 +1,5 @@
 [
   {
-    "symbol": "USDT",
-    "network": "TRC20",
-    "btcturk": {
-      "symbol": "USDT",
-      "network": "TRC20",
-      "address": "YOUR_BTCTURK_USDT_ADDRESS_HERE",
-      "memo": null
-    },
-    "paribu": {
-      "symbol": "USDT",
-      "network": "TRC20",
-      "address": "YOUR_PARIBU_USDT_ADDRESS_HERE",
-      "memo": null
-    }
-  },
-  {
-    "symbol": "USDT",
-    "network": "ERC20",
-    "btcturk": {
-      "symbol": "USDT",
-      "network": "ERC20",
-      "address": "YOUR_BTCTURK_USDT_ERC20_ADDRESS_HERE",
-      "memo": null
-    },
-    "paribu": {
-      "symbol": "USDT",
-      "network": "ERC20",
-      "address": "YOUR_PARIBU_USDT_ERC20_ADDRESS_HERE",
-      "memo": null
-    }
-  },
-  {
-    "symbol": "BTC",
-    "network": "BTC",
-    "btcturk": {
-      "symbol": "BTC",
-      "network": "BTC",
-      "address": "YOUR_BTCTURK_BTC_ADDRESS_HERE",
-      "memo": null
-    },
-    "paribu": {
-      "symbol": "BTC",
-      "network": "BTC",
-      "address": "YOUR_PARIBU_BTC_ADDRESS_HERE",
-      "memo": null
-    }
-  },
-  {
     "symbol": "ETH",
     "network": "ETH",
     "btcturk": {
