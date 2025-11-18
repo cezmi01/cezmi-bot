@@ -214,6 +214,17 @@ class BybitAdapter(BaseExchange):
 
         sym = symbol.upper()
 
+        # Check UNIFIED balance first
+        unified_data, unified_status = await self._get(
+            session,
+            "/v5/asset/transfer/query-account-coin-balance",
+            {"accountType": "UNIFIED", "coin": sym},
+        )
+        unified_available = Decimal("0")
+        if unified_status == 200 and unified_data.get("retCode") == 0:
+            unified_available = Decimal(str(unified_data.get("result", {}).get("availableToWithdraw", "0")))
+
+        # Check FUND balance
         data, status = await self._get(
             session,
             "/v5/asset/transfer/query-account-coin-balance",
@@ -222,14 +233,34 @@ class BybitAdapter(BaseExchange):
 
         fund_available = Decimal(str(data.get("result", {}).get("availableToWithdraw", "0"))) if status == 200 else Decimal("0")
 
+        write_log(
+            {
+                "exchange": self.name,
+                "symbol": sym,
+                "action": "BALANCE_CHECK",
+                "required": str(required),
+                "unified_available": str(unified_available),
+                "fund_available": str(fund_available),
+            }
+        )
+
         if fund_available >= required:
             self._last_balance_account = "FUND"
             return
 
+        # Need to transfer from UNIFIED to FUND
+        transfer_needed = required - fund_available
+        
+        # Check if UNIFIED has enough
+        if unified_available < transfer_needed:
+            raise RuntimeError(
+                f"Insufficient balance: Required {required}, FUND has {fund_available}, UNIFIED has {unified_available}, Need to transfer {transfer_needed}"
+            )
+
         transfer_body = {
             "transferId": str(uuid.uuid4()),
             "coin": sym,
-            "amount": str(required),
+            "amount": str(transfer_needed),
             "fromAccountType": "UNIFIED",
             "toAccountType": "FUND",
         }
@@ -241,6 +272,7 @@ class BybitAdapter(BaseExchange):
                 "action": "TRANSFER_PREP",
                 "required": str(required),
                 "fund_available": str(fund_available),
+                "transfer_amount": str(transfer_needed),
                 "from": "UNIFIED",
                 "to": "FUND",
             }
@@ -253,6 +285,22 @@ class BybitAdapter(BaseExchange):
                 f"Bybit transfer failed: HTTP {resp_status}, retCode={resp.get('retCode')}, retMsg={resp.get('retMsg')}"
             )
 
+        # Wait a bit and verify transfer
+        await asyncio.sleep(1)
+        
+        # Re-check FUND balance
+        verify_data, verify_status = await self._get(
+            session,
+            "/v5/asset/transfer/query-account-coin-balance",
+            {"accountType": "FUND", "coin": sym},
+        )
+        fund_available_after = Decimal(str(verify_data.get("result", {}).get("availableToWithdraw", "0"))) if verify_status == 200 else Decimal("0")
+        
+        if fund_available_after < required:
+            raise RuntimeError(
+                f"Transfer completed but insufficient balance: Required {required}, FUND has {fund_available_after}"
+            )
+
         self._last_balance_account = "FUND"
         write_log(
             {
@@ -260,7 +308,9 @@ class BybitAdapter(BaseExchange):
                 "symbol": sym,
                 "action": "TRANSFER_OK",
                 "transferId": resp.get("result", {}).get("transferId"),
-                "amount": str(required),
+                "amount": str(transfer_needed),
+                "fund_before": str(fund_available),
+                "fund_after": str(fund_available_after),
             }
         )
 
