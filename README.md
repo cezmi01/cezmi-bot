@@ -39,28 +39,42 @@ OKX_PASSPHRASE=your_passphrase
 
 **Not**: BTC Turk ve Paribu için API key gerekmez - adresler manuel olarak config.json'da belirtilir.
 
-4. `config.json` dosyasını düzenleyin - **her coin için BTC Turk veya Paribu deposit adresini** ekleyin:
+4. `config.json` dosyasını düzenleyin - **her coin için hem BTC Turk hem Paribu deposit adreslerini** ekleyin:
 ```json
 [
   {
     "symbol": "USDT",
     "network": "TRC20",
-    "address": "TRX_ADRESINIZ_BURAYA",
-    "memo": null
+    "btcturk": {
+      "address": "BTCTURK_USDT_ADRESINIZ_BURAYA",
+      "memo": null
+    },
+    "paribu": {
+      "address": "PARIBU_USDT_ADRESINIZ_BURAYA",
+      "memo": null
+    }
   },
   {
     "symbol": "BTC",
     "network": "BTC",
-    "address": "BTC_ADRESINIZ_BURAYA",
-    "memo": null
+    "btcturk": {
+      "address": "BTCTURK_BTC_ADRESINIZ_BURAYA",
+      "memo": null
+    },
+    "paribu": {
+      "address": "PARIBU_BTC_ADRESINIZ_BURAYA",
+      "memo": null
+    }
   }
 ]
 ```
 
 **Önemli**: 
-- `address`: BTC Turk veya Paribu'dan aldığınız deposit adresi
+- Her coin için **hem `btcturk` hem `paribu`** bölümlerini doldurun
+- `address`: İlgili borsadan aldığınız deposit adresi
 - `network`: Coin'in network'ü (TRC20, BTC, ETH, vb.)
 - `memo`: Eğer coin memo/tag gerektiriyorsa (örn: XRP, XLM), aksi halde `null`
+- GUI'de seçtiğiniz alıcı borsaya göre ilgili adres otomatik kullanılır
 
 ## Kullanım
 

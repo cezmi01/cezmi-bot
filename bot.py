@@ -943,12 +943,20 @@ async def run_transfer_flow(source_exchange: str, target_exchange: str, coins: l
     async def work(coin: dict):
         symbol = coin["symbol"].upper()
         network = coin.get("network", "")
-        address = coin.get("address", "").strip()
-        memo = coin.get("memo")
-
-        # Config'den adres kontrolü
+        
+        # Target exchange'e göre adres seç
+        target_key = target_exchange.lower()  # "BTCTurk" -> "btcturk", "Paribu" -> "paribu"
+        target_info = coin.get(target_key, {})
+        
+        if not target_info:
+            q.put(f"{symbol}: ❌ Config'de {target_exchange} adresi bulunamadı")
+            return
+        
+        address = target_info.get("address", "").strip()
+        memo = target_info.get("memo")
+        
         if not address:
-            q.put(f"{symbol}: ❌ Config'de adres bulunamadı")
+            q.put(f"{symbol}: ❌ Config'de {target_exchange} adresi boş")
             return
 
         q.put(f"{symbol}: 📍 Hedef adres: {address[:10]}... ({target_exchange})")

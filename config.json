@@ -2,19 +2,37 @@
   {
     "symbol": "USDT",
     "network": "TRC20",
-    "address": "YOUR_BTCTURK_OR_PARIBU_ADDRESS_HERE",
-    "memo": null
+    "btcturk": {
+      "address": "YOUR_BTCTURK_USDT_ADDRESS_HERE",
+      "memo": null
+    },
+    "paribu": {
+      "address": "YOUR_PARIBU_USDT_ADDRESS_HERE",
+      "memo": null
+    }
   },
   {
     "symbol": "BTC",
     "network": "BTC",
-    "address": "YOUR_BTCTURK_OR_PARIBU_ADDRESS_HERE",
-    "memo": null
+    "btcturk": {
+      "address": "YOUR_BTCTURK_BTC_ADDRESS_HERE",
+      "memo": null
+    },
+    "paribu": {
+      "address": "YOUR_PARIBU_BTC_ADDRESS_HERE",
+      "memo": null
+    }
   },
   {
     "symbol": "ETH",
     "network": "ETH",
-    "address": "YOUR_BTCTURK_OR_PARIBU_ADDRESS_HERE",
-    "memo": null
+    "btcturk": {
+      "address": "YOUR_BTCTURK_ETH_ADDRESS_HERE",
+      "memo": null
+    },
+    "paribu": {
+      "address": "YOUR_PARIBU_ETH_ADDRESS_HERE",
+      "memo": null
+    }
   }
 ]
