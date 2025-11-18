@@ -547,21 +547,9 @@ class BybitAdapter(BaseExchange):
             await self._wait_for_withdraw_slot()
             
             # Eğer bakiye zaten FUND'da ise transfer yapmaya gerek yok
-            # Sadece FUND'daki bakiyeyi kontrol et
-            if self._last_balance_account == "FUND":
-                fund_data, fund_status = await self._get(
-                    session,
-                    "/v5/asset/transfer/query-account-coin-balance",
-                    {"accountType": "FUND", "coin": sym},
-                )
-                fund_available = Decimal("0")
-                if fund_status == 200 and fund_data.get("retCode") == 0:
-                    fund_available = Decimal(str(fund_data.get("result", {}).get("availableToWithdraw", "0")))
-                
-                if fund_available < total_required:
-                    # FUND'da yeterli yoksa transfer yap
-                    await self._ensure_fund_liquidity(session, sym, total_required)
-            else:
+            # get_balance fonksiyonu transferBalance kullanıyor ve FUND'da bulduysa
+            # bu bakiye zaten FUND'da demektir, transfer yapmaya gerek yok
+            if self._last_balance_account != "FUND":
                 # Bakiye UNIFIED'da ise transfer yap
                 await self._ensure_fund_liquidity(session, sym, total_required)
             
