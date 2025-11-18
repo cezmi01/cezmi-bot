@@ -486,61 +486,54 @@ class BybitAdapter(BaseExchange):
                 raise RuntimeError(f"Wallet permission missing! Available: {list(perms.keys())}")
 
     async def get_balance(self, session, symbol: str) -> Decimal:
-        """Get balance from UNIFIED account"""
+        """Get balance from UNIFIED account (using availableToWithdraw)"""
         sym = symbol.upper()
 
-        balance_data, balance_status = await self._get(
+        # Check UNIFIED account
+        unified_data, unified_status = await self._get(
             session,
-            "/v5/asset/transfer/query-account-coins-balance",
+            "/v5/asset/transfer/query-account-coin-balance",
             {"accountType": "UNIFIED", "coin": sym},
         )
 
         unified_available = Decimal("0")
-        if balance_status == 200 and balance_data.get("retCode") == 0:
-            coins = balance_data.get("result", {}).get("balance", [])
-            for coin in coins:
-                if coin.get("coin", "").upper() == sym:
-                    try:
-                        unified_available = Decimal(str(coin.get("transferBalance", "0")))
-                    except Exception:
-                        unified_available = Decimal("0")
-                    write_log(
-                        {
-                            "exchange": self.name,
-                            "symbol": sym,
-                            "note": "UNIFIED_BALANCE",
-                            "transferBalance": str(unified_available),
-                        }
-                    )
-                    break
+        if unified_status == 200 and unified_data.get("retCode") == 0:
+            unified_available = Decimal(str(unified_data.get("result", {}).get("availableToWithdraw", "0")))
+            write_log(
+                {
+                    "exchange": self.name,
+                    "symbol": sym,
+                    "note": "UNIFIED_BALANCE",
+                    "availableToWithdraw": str(unified_available),
+                }
+            )
 
         if unified_available > 0:
             self._last_balance_account = "UNIFIED"
             return unified_available
 
+        # Check FUND account
         funding_data, funding_status = await self._get(
             session,
-            "/v5/asset/transfer/query-account-coins-balance",
+            "/v5/asset/transfer/query-account-coin-balance",
             {"accountType": "FUND", "coin": sym},
         )
+        
+        fund_available = Decimal("0")
         if funding_status == 200 and funding_data.get("retCode") == 0:
-            coins = funding_data.get("result", {}).get("balance", [])
-            for coin in coins:
-                if coin.get("coin", "").upper() == sym:
-                    fund_available = Decimal(str(coin.get("transferBalance", "0")))
-                    if fund_available > 0:
-                        self._last_balance_account = "FUND"
-                        write_log(
-                            {
-                                "exchange": self.name,
-                                "symbol": sym,
-                                "balance": str(fund_available),
-                                "account": "FUND",
-                                "source": "transferBalance",
-                            }
-                        )
-                        return fund_available
-                    break
+            fund_available = Decimal(str(funding_data.get("result", {}).get("availableToWithdraw", "0")))
+            if fund_available > 0:
+                self._last_balance_account = "FUND"
+                write_log(
+                    {
+                        "exchange": self.name,
+                        "symbol": sym,
+                        "balance": str(fund_available),
+                        "account": "FUND",
+                        "source": "availableToWithdraw",
+                    }
+                )
+                return fund_available
 
         self._last_balance_account = None
         write_log({"exchange": self.name, "symbol": sym, "note": "NO_BALANCE"})
