@@ -733,11 +733,13 @@ class OKXAdapter(BaseExchange):
         )
 
         # Chain seçimi: OKX API'sinden gelen chain listesinde doğru chain'i bul
-        # OKX chain formatı genelde "COIN-CHAIN" şeklinde (örn: "ETH-ETH", "ETH-X-Layer")
-        # Ama API'den gelen chain değeri sadece chain kısmı olabilir (örn: "ETH", "X-Layer")
+        # OKX API'sinden gelen chain değeri "COIN-CHAIN" formatında olabilir (örn: "ETH-ETH", "ETH-X-Layer")
+        # Veya sadece chain kısmı olabilir (örn: "ETH", "X-Layer")
+        # Öncelik: Tam eşleşme > Chain'in son kısmı eşleşmesi > Fallback
+        
         exact_match = None
-        partial_match = None
-        chain_name_match = None
+        chain_suffix_match = None
+        fallback_match = None
         
         for ch in entries:
             can_wd = str(ch.get("canWd")).lower() == "true"
@@ -748,15 +750,13 @@ class OKXAdapter(BaseExchange):
             if not chain_name:
                 continue
             
+            # Chain name'i normalize et
             chain_upper = chain_name.upper()
-            cleaned_chain = chain_upper.replace(" ", "").replace("-", "").replace("_", "")
             
             if want:
-                normalized_want = want.replace(" ", "").replace("-", "").replace("_", "")
-                
-                # 1. Chain name ile tam eşleşme (en öncelikli)
-                # Örn: "ETH" network'ü için "ETH" chain'i
-                if chain_upper == want or cleaned_chain == normalized_want:
+                # 1. Tam eşleşme: Chain name tam olarak network ile eşleşiyor mu?
+                # Örn: network "ETH" ise, chain "ETH" veya "ETH-ETH" olabilir
+                if chain_upper == want:
                     exact_match = ch
                     write_log(
                         {
@@ -764,65 +764,53 @@ class OKXAdapter(BaseExchange):
                             "symbol": symbol.upper(),
                             "note": "OKX_CHAIN_EXACT_MATCH",
                             "selected_chain": chain_name,
-                            "chain_display_name": chain_display_name,
                             "requested": want_raw,
                         }
                     )
                     break
                 
-                # 2. Chain display name ile eşleşme
-                if chain_display_name and want_raw.lower() == chain_display_name.lower():
-                    if not exact_match:
-                        chain_name_match = ch
-                        write_log(
-                            {
-                                "exchange": self.name,
-                                "symbol": symbol.upper(),
-                                "note": "OKX_CHAIN_NAME_MATCH",
-                                "selected_chain": chain_name,
-                                "chain_display_name": chain_display_name,
-                                "match_name": want_raw,
-                            }
-                        )
+                # 2. Chain'in son kısmı (tire'den sonrası) network ile eşleşiyor mu?
+                # Örn: network "ETH" ise, chain "ETH-ETH" veya "USDT-ETH" olabilir
+                if "-" in chain_name:
+                    chain_suffix = chain_name.split("-")[-1].upper()
+                    if chain_suffix == want:
+                        if not exact_match:
+                            chain_suffix_match = ch
+                            write_log(
+                                {
+                                    "exchange": self.name,
+                                    "symbol": symbol.upper(),
+                                    "note": "OKX_CHAIN_SUFFIX_MATCH",
+                                    "selected_chain": chain_name,
+                                    "chain_suffix": chain_suffix,
+                                    "requested": want_raw,
+                                }
+                            )
                 
-                # 3. Chain name'in içinde network var mı kontrol et
-                # Örn: "ETH" network'ü için "ETH-Mainnet" chain'i
-                if not exact_match and not chain_name_match:
-                    if normalized_want in cleaned_chain:
-                        if not partial_match:
-                            partial_match = ch
+                # 3. Chain display name ile eşleşme
+                if chain_display_name and want_raw.lower() == chain_display_name.lower():
+                    if not exact_match and not chain_suffix_match:
+                        fallback_match = ch
             else:
                 # Network belirtilmemişse, ilk uygun chain'i al
-                if not fallback:
-                    fallback = ch
+                if not fallback_match:
+                    fallback_match = ch
         
-        # Öncelik sırası: exact_match > chain_name_match > partial_match > fallback
+        # Öncelik sırası: exact_match > chain_suffix_match > fallback_match
         if exact_match:
             chain = exact_match.get("chain")
             fee = exact_match.get("minFee", "0")
-        elif chain_name_match:
-            chain = chain_name_match.get("chain")
-            fee = chain_name_match.get("minFee", "0")
-        elif partial_match:
-            chain = partial_match.get("chain")
-            fee = partial_match.get("minFee", "0")
+        elif chain_suffix_match:
+            chain = chain_suffix_match.get("chain")
+            fee = chain_suffix_match.get("minFee", "0")
+        elif fallback_match:
+            chain = fallback_match.get("chain")
+            fee = fallback_match.get("minFee", "0")
             write_log(
                 {
                     "exchange": self.name,
                     "symbol": symbol.upper(),
-                    "note": "OKX_CHAIN_PARTIAL_MATCH",
-                    "selected_chain": chain,
-                    "requested": want,
-                }
-            )
-        elif fallback:
-            chain = fallback.get("chain")
-            fee = fallback.get("minFee", "0")
-            write_log(
-                {
-                    "exchange": self.name,
-                    "symbol": symbol.upper(),
-                    "note": "OKX_CHAIN_FALLBACK_FIRST",
+                    "note": "OKX_CHAIN_FALLBACK",
                     "selected_chain": chain,
                 }
             )
