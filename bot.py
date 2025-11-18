@@ -704,6 +704,11 @@ class OKXAdapter(BaseExchange):
             }
         )
 
+        # Chain seçimi: Önce tam eşleşme, sonra kısmi eşleşme
+        # Bu sayede ETH için ETH chain'i seçilir, XLAYER değil
+        exact_match = None
+        partial_match = None
+        
         for ch in entries:
             can_wd = str(ch.get("canWd")).lower() == "true"
             if not can_wd:
@@ -711,54 +716,78 @@ class OKXAdapter(BaseExchange):
             chain_name = ch.get("chain", "")
             if not chain_name:
                 continue
+            
             chain_upper = chain_name.upper()
             cleaned_chain = chain_upper.replace(" ", "").replace("-", "")
+            
             if want:
                 normalized_want = want.replace(" ", "").replace("-", "")
-                if normalized_want in cleaned_chain or cleaned_chain in normalized_want:
-                    chain = chain_name
-                    fee = ch.get("minFee", "0")
+                
+                # 1. Tam eşleşme kontrolü (en öncelikli)
+                if cleaned_chain == normalized_want:
+                    exact_match = ch
                     write_log(
                         {
                             "exchange": self.name,
                             "symbol": symbol.upper(),
-                            "note": "OKX_CHAIN_MATCH",
-                            "selected_chain": chain,
-                            "match": normalized_want,
+                            "note": "OKX_CHAIN_EXACT_MATCH",
+                            "selected_chain": chain_name,
+                            "requested": normalized_want,
                         }
                     )
                     break
+                
+                # 2. Chain name ile eşleşme
                 if want_raw and want_raw.lower() == str(ch.get("name", "")).lower():
-                    chain = chain_name
-                    fee = ch.get("minFee", "0")
-                    write_log(
-                        {
-                            "exchange": self.name,
-                            "symbol": symbol.upper(),
-                            "note": "OKX_CHAIN_NAME_MATCH",
-                            "selected_chain": chain,
-                            "match_name": want_raw,
-                        }
-                    )
-                    break
+                    if not exact_match:
+                        exact_match = ch
+                        write_log(
+                            {
+                                "exchange": self.name,
+                                "symbol": symbol.upper(),
+                                "note": "OKX_CHAIN_NAME_MATCH",
+                                "selected_chain": chain_name,
+                                "match_name": want_raw,
+                            }
+                        )
+                
+                # 3. Kısmi eşleşme (sadece exact match yoksa)
+                if not exact_match:
+                    if normalized_want in cleaned_chain or cleaned_chain in normalized_want:
+                        if not partial_match:
+                            partial_match = ch
             else:
-                chain = chain_name
-                fee = ch.get("minFee", "0")
-                write_log(
-                    {
-                        "exchange": self.name,
-                        "symbol": symbol.upper(),
-                        "note": "OKX_CHAIN_FALLBACK_FIRST",
-                        "selected_chain": chain,
-                    }
-                )
-                break
-            if fallback is None:
-                fallback = ch
-
-        if not chain and fallback:
+                # Network belirtilmemişse, ilk uygun chain'i al
+                if not fallback:
+                    fallback = ch
+        
+        # Öncelik sırası: exact_match > partial_match > fallback
+        if exact_match:
+            chain = exact_match.get("chain")
+            fee = exact_match.get("minFee", "0")
+        elif partial_match:
+            chain = partial_match.get("chain")
+            fee = partial_match.get("minFee", "0")
+            write_log(
+                {
+                    "exchange": self.name,
+                    "symbol": symbol.upper(),
+                    "note": "OKX_CHAIN_PARTIAL_MATCH",
+                    "selected_chain": chain,
+                    "requested": want,
+                }
+            )
+        elif fallback:
             chain = fallback.get("chain")
             fee = fallback.get("minFee", "0")
+            write_log(
+                {
+                    "exchange": self.name,
+                    "symbol": symbol.upper(),
+                    "note": "OKX_CHAIN_FALLBACK_FIRST",
+                    "selected_chain": chain,
+                }
+            )
 
         if not chain:
             return {"error": "chain_not_found", "available": data1}, 400
