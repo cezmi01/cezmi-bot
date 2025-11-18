@@ -14,5 +14,21 @@
       "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
     }
+  },
+  {
+    "symbol": "0G",
+    "network": "0G",
+    "btcturk": {
+      "symbol": "0G",
+      "network": "0G",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    },
+    "paribu": {
+      "symbol": "0G",
+      "network": "0G",
+      "address": "YOUR_PARIBU_0G_ADDRESS_HERE",
+      "memo": null
+    }
   }
 ]
