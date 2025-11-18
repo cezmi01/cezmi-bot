@@ -214,17 +214,6 @@ class BybitAdapter(BaseExchange):
 
         sym = symbol.upper()
 
-        # Check UNIFIED balance first
-        unified_data, unified_status = await self._get(
-            session,
-            "/v5/asset/transfer/query-account-coin-balance",
-            {"accountType": "UNIFIED", "coin": sym},
-        )
-        unified_available = Decimal("0")
-        if unified_status == 200 and unified_data.get("retCode") == 0:
-            unified_available = Decimal(str(unified_data.get("result", {}).get("availableToWithdraw", "0")))
-
-        # Check FUND balance
         data, status = await self._get(
             session,
             "/v5/asset/transfer/query-account-coin-balance",
@@ -233,34 +222,14 @@ class BybitAdapter(BaseExchange):
 
         fund_available = Decimal(str(data.get("result", {}).get("availableToWithdraw", "0"))) if status == 200 else Decimal("0")
 
-        write_log(
-            {
-                "exchange": self.name,
-                "symbol": sym,
-                "action": "BALANCE_CHECK",
-                "required": str(required),
-                "unified_available": str(unified_available),
-                "fund_available": str(fund_available),
-            }
-        )
-
         if fund_available >= required:
             self._last_balance_account = "FUND"
             return
 
-        # Need to transfer from UNIFIED to FUND
-        transfer_needed = required - fund_available
-        
-        # Check if UNIFIED has enough
-        if unified_available < transfer_needed:
-            raise RuntimeError(
-                f"Insufficient balance: Required {required}, FUND has {fund_available}, UNIFIED has {unified_available}, Need to transfer {transfer_needed}"
-            )
-
         transfer_body = {
             "transferId": str(uuid.uuid4()),
             "coin": sym,
-            "amount": str(transfer_needed),
+            "amount": str(required),
             "fromAccountType": "UNIFIED",
             "toAccountType": "FUND",
         }
@@ -272,7 +241,6 @@ class BybitAdapter(BaseExchange):
                 "action": "TRANSFER_PREP",
                 "required": str(required),
                 "fund_available": str(fund_available),
-                "transfer_amount": str(transfer_needed),
                 "from": "UNIFIED",
                 "to": "FUND",
             }
@@ -285,22 +253,6 @@ class BybitAdapter(BaseExchange):
                 f"Bybit transfer failed: HTTP {resp_status}, retCode={resp.get('retCode')}, retMsg={resp.get('retMsg')}"
             )
 
-        # Wait a bit and verify transfer
-        await asyncio.sleep(1)
-        
-        # Re-check FUND balance
-        verify_data, verify_status = await self._get(
-            session,
-            "/v5/asset/transfer/query-account-coin-balance",
-            {"accountType": "FUND", "coin": sym},
-        )
-        fund_available_after = Decimal(str(verify_data.get("result", {}).get("availableToWithdraw", "0"))) if verify_status == 200 else Decimal("0")
-        
-        if fund_available_after < required:
-            raise RuntimeError(
-                f"Transfer completed but insufficient balance: Required {required}, FUND has {fund_available_after}"
-            )
-
         self._last_balance_account = "FUND"
         write_log(
             {
@@ -308,9 +260,7 @@ class BybitAdapter(BaseExchange):
                 "symbol": sym,
                 "action": "TRANSFER_OK",
                 "transferId": resp.get("result", {}).get("transferId"),
-                "amount": str(transfer_needed),
-                "fund_before": str(fund_available),
-                "fund_after": str(fund_available_after),
+                "amount": str(required),
             }
         )
 
@@ -486,92 +436,64 @@ class BybitAdapter(BaseExchange):
                 raise RuntimeError(f"Wallet permission missing! Available: {list(perms.keys())}")
 
     async def get_balance(self, session, symbol: str) -> Decimal:
-        """Get balance from UNIFIED account (using availableToWithdraw)"""
+        """Get balance from UNIFIED account"""
         sym = symbol.upper()
 
-        # Check UNIFIED account
-        unified_data, unified_status = await self._get(
+        balance_data, balance_status = await self._get(
             session,
-            "/v5/asset/transfer/query-account-coin-balance",
+            "/v5/asset/transfer/query-account-coins-balance",
             {"accountType": "UNIFIED", "coin": sym},
         )
 
         unified_available = Decimal("0")
-        if unified_status == 200 and unified_data.get("retCode") == 0:
-            result = unified_data.get("result", {})
-            # Try multiple possible field names
-            unified_available = Decimal(str(
-                result.get("availableToWithdraw") or 
-                result.get("transferBalance") or 
-                result.get("walletBalance") or 
-                "0"
-            ))
-            write_log(
-                {
-                    "exchange": self.name,
-                    "symbol": sym,
-                    "note": "UNIFIED_BALANCE",
-                    "availableToWithdraw": str(unified_available),
-                    "raw_result": result,
-                }
-            )
+        if balance_status == 200 and balance_data.get("retCode") == 0:
+            coins = balance_data.get("result", {}).get("balance", [])
+            for coin in coins:
+                if coin.get("coin", "").upper() == sym:
+                    try:
+                        unified_available = Decimal(str(coin.get("transferBalance", "0")))
+                    except Exception:
+                        unified_available = Decimal("0")
+                    write_log(
+                        {
+                            "exchange": self.name,
+                            "symbol": sym,
+                            "note": "UNIFIED_BALANCE",
+                            "transferBalance": str(unified_available),
+                        }
+                    )
+                    break
 
         if unified_available > 0:
             self._last_balance_account = "UNIFIED"
             return unified_available
 
-        # Check FUND account
         funding_data, funding_status = await self._get(
             session,
-            "/v5/asset/transfer/query-account-coin-balance",
+            "/v5/asset/transfer/query-account-coins-balance",
             {"accountType": "FUND", "coin": sym},
         )
-        
-        fund_available = Decimal("0")
         if funding_status == 200 and funding_data.get("retCode") == 0:
-            result = funding_data.get("result", {})
-            # Try multiple possible field names
-            fund_available = Decimal(str(
-                result.get("availableToWithdraw") or 
-                result.get("transferBalance") or 
-                result.get("walletBalance") or 
-                "0"
-            ))
-            write_log(
-                {
-                    "exchange": self.name,
-                    "symbol": sym,
-                    "note": "FUND_BALANCE",
-                    "availableToWithdraw": str(fund_available),
-                    "raw_result": result,
-                }
-            )
-            
-            if fund_available > 0:
-                self._last_balance_account = "FUND"
-                write_log(
-                    {
-                        "exchange": self.name,
-                        "symbol": sym,
-                        "balance": str(fund_available),
-                        "account": "FUND",
-                        "source": "availableToWithdraw",
-                    }
-                )
-                return fund_available
+            coins = funding_data.get("result", {}).get("balance", [])
+            for coin in coins:
+                if coin.get("coin", "").upper() == sym:
+                    fund_available = Decimal(str(coin.get("transferBalance", "0")))
+                    if fund_available > 0:
+                        self._last_balance_account = "FUND"
+                        write_log(
+                            {
+                                "exchange": self.name,
+                                "symbol": sym,
+                                "balance": str(fund_available),
+                                "account": "FUND",
+                                "source": "transferBalance",
+                            }
+                        )
+                        return fund_available
+                    break
 
         self._last_balance_account = None
-        write_log(
-            {
-                "exchange": self.name,
-                "symbol": sym,
-                "note": "NO_BALANCE",
-                "unified_status": unified_status,
-                "fund_status": funding_status,
-                "unified_data": unified_data,
-                "fund_data": funding_data,
-            }
-        )
+        write_log({"exchange": self.name, "symbol": sym, "note": "NO_BALANCE"})
 
         return Decimal("0")
 
@@ -623,36 +545,7 @@ class BybitAdapter(BaseExchange):
         lock = await self._get_withdraw_lock()
         async with lock:
             await self._wait_for_withdraw_slot()
-            
-            # Check current account - if balance is already in FUND, no transfer needed
-            current_account = self._last_balance_account
-            if current_account != "FUND":
-                # Only transfer if balance is in UNIFIED
-                await self._ensure_fund_liquidity(session, sym, total_required)
-            else:
-                # Balance is already in FUND, just verify it's enough
-                fund_data, fund_status = await self._get(
-                    session,
-                    "/v5/asset/transfer/query-account-coin-balance",
-                    {"accountType": "FUND", "coin": sym},
-                )
-                fund_available = Decimal("0")
-                if fund_status == 200 and fund_data.get("retCode") == 0:
-                    fund_available = Decimal(str(fund_data.get("result", {}).get("availableToWithdraw", "0")))
-                
-                if fund_available < total_required:
-                    write_log(
-                        {
-                            "exchange": self.name,
-                            "symbol": sym,
-                            "note": "FUND_INSUFFICIENT",
-                            "required": str(total_required),
-                            "available": str(fund_available),
-                        }
-                    )
-                    # Try to transfer from UNIFIED
-                    await self._ensure_fund_liquidity(session, sym, total_required)
-            
+            await self._ensure_fund_liquidity(session, sym, total_required)
             try:
                 return await self._post(session, "/v5/asset/withdraw/create", body)
             finally:
