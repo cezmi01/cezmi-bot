@@ -29,7 +29,7 @@ from tkinter import ttk, messagebox
 import aiohttp
 from dotenv import load_dotenv
 
-APP_TITLE = "Multi-Exchange Çekim Botu"
+APP_TITLE = "Multi-Exchange Transfer Botu"
 CONFIG_PATH = Path("config.json")
 LOG_PATH = Path("withdraw_logs.jsonl")
 
@@ -65,6 +65,10 @@ class BaseExchange:
         raise NotImplementedError
 
     async def withdraw(self, session, symbol, network, address, memo, amount: Decimal):
+        raise NotImplementedError
+
+    async def get_deposit_address(self, session, symbol: str, network: str = None) -> dict:
+        """Get deposit address for receiving coins"""
         raise NotImplementedError
 
 
@@ -911,6 +915,220 @@ class OKXAdapter(BaseExchange):
 
 
 # ═══════════════════════════════════════════════════════════════
+#                         BTC TURK ADAPTER (DEPOSIT)
+# ═══════════════════════════════════════════════════════════════
+class BTCTurkAdapter(BaseExchange):
+    name = "BTCTURK"
+    API = "https://api.btcturk.com"
+
+    def __init__(self):
+        self.key = os.getenv("BTCTURK_KEY", "").strip()
+        self.secret = os.getenv("BTCTURK_SECRET", "").strip()
+
+    def _sign(self, params: dict) -> str:
+        """BTC Turk signature"""
+        if not self.secret:
+            return ""
+        query = "&".join([f"{k}={v}" for k, v in sorted(params.items())])
+        message = f"{self.key}{query}"
+        signature = base64.b64encode(
+            hmac.new(self.secret.encode(), message.encode(), hashlib.sha256).digest()
+        ).decode()
+        return signature
+
+    async def preflight(self):
+        """Connection check"""
+        timeout = aiohttp.ClientTimeout(total=20)
+        async with aiohttp.ClientSession(timeout=timeout) as s:
+            if not self.key or not self.secret:
+                raise RuntimeError("BTC Turk API keys not configured")
+            # Test API connection
+            params = {"timestamp": str(int(time.time() * 1000))}
+            params["signature"] = self._sign(params)
+            headers = {
+                "X-PCK": self.key,
+                "X-Stamp": params["timestamp"],
+                "X-Signature": params["signature"],
+            }
+            async with s.get(f"{self.API}/api/v2/balance", headers=headers) as r:
+                if r.status not in (200, 401):  # 401 is OK if keys are wrong, but API is reachable
+                    raise RuntimeError(f"BTC Turk HTTP {r.status}")
+
+    async def get_balance(self, session, symbol: str) -> Decimal:
+        """Get balance - not used for deposit adapter"""
+        return Decimal("0")
+
+    async def withdraw(self, session, symbol, network, address, memo, amount: Decimal):
+        """Not supported - this is a deposit-only adapter"""
+        raise NotImplementedError("BTC Turk is deposit-only")
+
+    async def get_deposit_address(self, session, symbol: str, network: str = None) -> dict:
+        """Get deposit address for BTC Turk"""
+        params = {"timestamp": str(int(time.time() * 1000))}
+        params["signature"] = self._sign(params)
+        headers = {
+            "X-PCK": self.key,
+            "X-Stamp": params["timestamp"],
+            "X-Signature": params["signature"],
+        }
+
+        # BTC Turk uses currency code (e.g., "USDT", "BTC")
+        currency = symbol.upper()
+        
+        # Try to get deposit address
+        url = f"{self.API}/api/v2/deposit/address"
+        params_deposit = {"currency": currency, "timestamp": params["timestamp"]}
+        params_deposit["signature"] = self._sign(params_deposit)
+        headers_deposit = {
+            "X-PCK": self.key,
+            "X-Stamp": params_deposit["timestamp"],
+            "X-Signature": params_deposit["signature"],
+        }
+
+        async with session.get(url, params={"currency": currency}, headers=headers_deposit) as r:
+            try:
+                data = await r.json()
+            except Exception:
+                data = {"raw": await r.text()}
+
+            write_log(
+                {
+                    "exchange": self.name,
+                    "symbol": currency,
+                    "action": "GET_DEPOSIT_ADDRESS",
+                    "status": r.status,
+                    "response": data,
+                }
+            )
+
+            if r.status == 200 and isinstance(data, dict):
+                # BTC Turk response format: {"address": "...", "tag": "..."}
+                address = data.get("address") or data.get("depositAddress")
+                tag = data.get("tag") or data.get("memo") or data.get("destinationTag")
+                
+                if address:
+                    return {
+                        "address": address,
+                        "memo": tag,
+                        "network": network or currency,
+                    }
+
+            # Fallback: return error info
+            return {
+                "error": f"Failed to get deposit address: {data}",
+                "status": r.status,
+            }
+
+
+# ═══════════════════════════════════════════════════════════════
+#                         PARIBU ADAPTER (DEPOSIT)
+# ═══════════════════════════════════════════════════════════════
+class ParibuAdapter(BaseExchange):
+    name = "PARIBU"
+    API = "https://www.paribu.com"
+
+    def __init__(self):
+        self.key = os.getenv("PARIBU_KEY", "").strip()
+        self.secret = os.getenv("PARIBU_SECRET", "").strip()
+        self.access_token = None
+
+    async def _get_access_token(self, session):
+        """Get access token for Paribu API"""
+        if self.access_token:
+            return self.access_token
+
+        if not self.key or not self.secret:
+            raise RuntimeError("Paribu API keys not configured")
+
+        # Paribu uses OAuth-like authentication
+        # This is a simplified version - actual implementation may vary
+        auth_data = {
+            "apiKey": self.key,
+            "apiSecret": self.secret,
+        }
+
+        async with session.post(f"{self.API}/api/v1/auth", json=auth_data) as r:
+            if r.status == 200:
+                data = await r.json()
+                self.access_token = data.get("accessToken") or data.get("token")
+                return self.access_token
+            else:
+                raise RuntimeError(f"Paribu auth failed: HTTP {r.status}")
+
+    async def preflight(self):
+        """Connection check"""
+        timeout = aiohttp.ClientTimeout(total=20)
+        async with aiohttp.ClientSession(timeout=timeout) as s:
+            if not self.key or not self.secret:
+                raise RuntimeError("Paribu API keys not configured")
+            try:
+                await self._get_access_token(s)
+            except Exception as e:
+                # If auth fails, API might still be reachable
+                write_log({"exchange": self.name, "note": "preflight_auth_warning", "error": str(e)})
+
+    async def get_balance(self, session, symbol: str) -> Decimal:
+        """Get balance - not used for deposit adapter"""
+        return Decimal("0")
+
+    async def withdraw(self, session, symbol, network, address, memo, amount: Decimal):
+        """Not supported - this is a deposit-only adapter"""
+        raise NotImplementedError("Paribu is deposit-only")
+
+    async def get_deposit_address(self, session, symbol: str, network: str = None) -> dict:
+        """Get deposit address for Paribu"""
+        try:
+            token = await self._get_access_token(session)
+        except Exception:
+            token = None
+
+        currency = symbol.upper()
+        headers = {}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        # Paribu deposit address endpoint
+        url = f"{self.API}/api/v1/deposit/address"
+        params = {"currency": currency}
+        if network:
+            params["network"] = network
+
+        async with session.get(url, params=params, headers=headers) as r:
+            try:
+                data = await r.json()
+            except Exception:
+                data = {"raw": await r.text()}
+
+            write_log(
+                {
+                    "exchange": self.name,
+                    "symbol": currency,
+                    "action": "GET_DEPOSIT_ADDRESS",
+                    "status": r.status,
+                    "response": data,
+                }
+            )
+
+            if r.status == 200 and isinstance(data, dict):
+                # Paribu response format may vary
+                address = data.get("address") or data.get("depositAddress") or data.get("walletAddress")
+                tag = data.get("tag") or data.get("memo") or data.get("destinationTag") or data.get("memoTag")
+                
+                if address:
+                    return {
+                        "address": address,
+                        "memo": tag,
+                        "network": network or currency,
+                    }
+
+            # Fallback: return error info
+            return {
+                "error": f"Failed to get deposit address: {data}",
+                "status": r.status,
+            }
+
+
+# ═══════════════════════════════════════════════════════════════
 #                         ADAPTERS REGISTRY
 # ═══════════════════════════════════════════════════════════════
 ADAPTERS = {
@@ -919,33 +1137,77 @@ ADAPTERS = {
     "OKX": OKXAdapter,
 }
 
+DEPOSIT_ADAPTERS = {
+    "BTCTurk": BTCTurkAdapter,
+    "Paribu": ParibuAdapter,
+}
+
 
 # ═══════════════════════════════════════════════════════════════
-#                         WITHDRAW FLOW
+#                         TRANSFER FLOW
 # ═══════════════════════════════════════════════════════════════
-async def run_withdraw_flow(exchange_name: str, coins: list[dict], q: Queue):
-    adapter = ADAPTERS[exchange_name]()
-    q.put(f"📍 Kaynak: {exchange_name}")
+async def run_transfer_flow(source_exchange: str, target_exchange: str, coins: list[dict], q: Queue):
+    source_adapter = ADAPTERS[source_exchange]()
+    target_adapter = DEPOSIT_ADAPTERS.get(target_exchange)
+    
+    if not target_adapter:
+        q.put(f"⛔ Alıcı borsa bulunamadı: {target_exchange}")
+        return
+    
+    target_adapter = target_adapter()
+    
+    q.put(f"📍 Kaynak: {source_exchange}")
+    q.put(f"📍 Alıcı: {target_exchange}")
 
     try:
-        await adapter.preflight()
-        q.put("✅ Bağlantı OK")
+        await source_adapter.preflight()
+        q.put(f"✅ {source_exchange} bağlantı OK")
     except Exception as e:
-        q.put(f"⛔ Preflight hata: {e}")
+        q.put(f"⛔ {source_exchange} preflight hata: {e}")
         if REQUIRE_STATIC_IP:
             return
+
+    try:
+        await target_adapter.preflight()
+        q.put(f"✅ {target_exchange} bağlantı OK")
+    except Exception as e:
+        q.put(f"⚠️ {target_exchange} preflight uyarı: {e} (devam ediliyor)")
 
     async def work(coin: dict):
         symbol = coin["symbol"].upper()
         network = coin.get("network", "")
-        address = coin["address"]
-        memo = coin.get("memo")
 
         timeout = aiohttp.ClientTimeout(total=60)
         async with aiohttp.ClientSession(timeout=timeout) as s:
+            # 1. Alıcı borsadan deposit adresi al
+            q.put(f"{symbol}: 📥 {target_exchange} deposit adresi alınıyor...")
             try:
-                bal = await adapter.get_balance(s, symbol)
-                q.put(f"{symbol}: Bakiye = {bal}")
+                deposit_info = await target_adapter.get_deposit_address(s, symbol, network)
+                
+                if "error" in deposit_info:
+                    q.put(f"{symbol}: ❌ Deposit adresi alınamadı: {deposit_info.get('error')}")
+                    return
+                
+                address = deposit_info.get("address")
+                memo = deposit_info.get("memo")
+                deposit_network = deposit_info.get("network", network)
+                
+                if not address:
+                    q.put(f"{symbol}: ❌ Deposit adresi boş")
+                    return
+                
+                q.put(f"{symbol}: ✅ Deposit adresi alındı: {address[:10]}...")
+                if memo:
+                    q.put(f"{symbol}: 📝 Memo/Tag: {memo}")
+                    
+            except Exception as e:
+                q.put(f"{symbol}: ❌ Deposit adresi hatası: {e}")
+                return
+
+            # 2. Kaynak borsadan bakiye kontrolü
+            try:
+                bal = await source_adapter.get_balance(s, symbol)
+                q.put(f"{symbol}: 💰 Bakiye = {bal}")
             except Exception as e:
                 q.put(f"{symbol}: ❌ Bakiye hatası: {e}")
                 return
@@ -954,11 +1216,12 @@ async def run_withdraw_flow(exchange_name: str, coins: list[dict], q: Queue):
                 q.put(f"{symbol}: ⚪ Atlandı (bakiye 0)")
                 return
 
+            # 3. Çekim işlemi
             amt = floor_amount(bal)
-            q.put(f"{symbol}: 🚀 Çekim başlatılıyor... ({amt})")
+            q.put(f"{symbol}: 🚀 {source_exchange} → {target_exchange} transfer başlatılıyor... ({amt})")
 
             try:
-                data, status = await adapter.withdraw(s, symbol, network, address, memo, amt)
+                data, status = await source_adapter.withdraw(s, symbol, deposit_network, address, memo, amt)
 
                 if isinstance(data, dict):
                     ret_code = data.get("retCode", data.get("code"))
@@ -975,13 +1238,15 @@ async def run_withdraw_flow(exchange_name: str, coins: list[dict], q: Queue):
                             success = True
 
                     if success:
-                        q.put(f"{symbol}: ✅ BAŞARILI")
+                        q.put(f"{symbol}: ✅ TRANSFER BAŞARILI ({source_exchange} → {target_exchange})")
                         write_log(
                             {
-                                "exchange": adapter.name,
+                                "source_exchange": source_adapter.name,
+                                "target_exchange": target_exchange,
                                 "symbol": symbol,
                                 "status": "success",
                                 "amount": str(amt),
+                                "address": address[:10] + "..." if address else None,
                                 "response": data,
                             }
                         )
@@ -989,7 +1254,8 @@ async def run_withdraw_flow(exchange_name: str, coins: list[dict], q: Queue):
                         q.put(f"{symbol}: ❌ HATA - {ret_msg or json.dumps(data)} (code: {ret_code})")
                         write_log(
                             {
-                                "exchange": adapter.name,
+                                "source_exchange": source_adapter.name,
+                                "target_exchange": target_exchange,
                                 "symbol": symbol,
                                 "status": "error",
                                 "retCode": ret_code,
@@ -1002,7 +1268,8 @@ async def run_withdraw_flow(exchange_name: str, coins: list[dict], q: Queue):
                     q.put(f"{symbol}: {'✅' if ok else '❌'} HTTP {status}")
                     write_log(
                         {
-                            "exchange": adapter.name,
+                            "source_exchange": source_adapter.name,
+                            "target_exchange": target_exchange,
                             "symbol": symbol,
                             "status": "success" if ok else "error",
                             "http_status": status,
@@ -1014,7 +1281,8 @@ async def run_withdraw_flow(exchange_name: str, coins: list[dict], q: Queue):
                 q.put(f"{symbol}: ❌ Exception: {e}")
                 write_log(
                     {
-                        "exchange": adapter.name,
+                        "source_exchange": source_adapter.name,
+                        "target_exchange": target_exchange,
                         "symbol": symbol,
                         "status": "exception",
                         "error": str(e),
@@ -1041,11 +1309,16 @@ class App(tk.Tk):
         top.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
 
         ttk.Label(top, text="Kaynak Borsa:").pack(side=tk.LEFT, padx=(0, 5))
-        self.cmb = ttk.Combobox(top, values=list(ADAPTERS.keys()), state="readonly", width=10)
-        self.cmb.current(1)
-        self.cmb.pack(side=tk.LEFT, padx=(0, 10))
+        self.cmb_source = ttk.Combobox(top, values=list(ADAPTERS.keys()), state="readonly", width=10)
+        self.cmb_source.current(1)
+        self.cmb_source.pack(side=tk.LEFT, padx=(0, 10))
 
-        self.btn = ttk.Button(top, text="🚀 TÜM COİNLERİ ÇEK", command=self.on_run)
+        ttk.Label(top, text="Alıcı Borsa:").pack(side=tk.LEFT, padx=(0, 5))
+        self.cmb_target = ttk.Combobox(top, values=list(DEPOSIT_ADAPTERS.keys()), state="readonly", width=10)
+        self.cmb_target.current(0)
+        self.cmb_target.pack(side=tk.LEFT, padx=(0, 10))
+
+        self.btn = ttk.Button(top, text="🚀 TRANSFER BAŞLAT", command=self.on_run)
         self.btn.pack(side=tk.LEFT, padx=5)
 
         self.status = ttk.Label(top, text="Hazır", anchor="w")
@@ -1080,17 +1353,28 @@ class App(tk.Tk):
             messagebox.showerror("Config Hatası", str(e))
             return
 
-        ex = self.cmb.get()
+        source_ex = self.cmb_source.get()
+        target_ex = self.cmb_target.get()
+        
+        if not source_ex:
+            messagebox.showerror("Hata", "Kaynak borsa seçiniz")
+            return
+            
+        if not target_ex:
+            messagebox.showerror("Hata", "Alıcı borsa seçiniz")
+            return
+
         self.btn.configure(state="disabled")
         self.status.configure(text="Çalışıyor...")
         self.log("─" * 60)
         self.log(f"📦 {len(coins)} coin yüklendi")
-        self.log(f"📍 Kaynak: {ex}")
+        self.log(f"📍 Kaynak: {source_ex}")
+        self.log(f"📍 Alıcı: {target_ex}")
         self.log("─" * 60)
 
         def runner():
             try:
-                asyncio.run(run_withdraw_flow(ex, coins, self.queue))
+                asyncio.run(run_transfer_flow(source_ex, target_ex, coins, self.queue))
             except Exception as e:
                 self.queue.put(f"⛔ Fatal: {e}")
             finally:

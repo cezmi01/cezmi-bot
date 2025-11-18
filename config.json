@@ -1,8 +1,14 @@
 [
   {
     "symbol": "USDT",
-    "network": "TRC20",
-    "address": "YOUR_ADDRESS_HERE",
-    "memo": null
+    "network": "TRC20"
+  },
+  {
+    "symbol": "BTC",
+    "network": "BTC"
+  },
+  {
+    "symbol": "ETH",
+    "network": "ETH"
   }
 ]

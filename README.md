@@ -1,13 +1,14 @@
-# Multi-Exchange Çekim Botu
+# Multi-Exchange Transfer Botu
 
-Multi-exchange çoklu coin çekim botu. Binance, Bybit ve OKX borsalarından coin çekimi yapabilir.
+Multi-exchange çoklu coin transfer botu. Binance, Bybit ve OKX borsalarından BTC Turk ve Paribu'ya otomatik coin transferi yapar.
 
 ## Özellikler
 
+- ✅ **Kaynak Borsalar**: Binance, Bybit, OKX
+- ✅ **Alıcı Borsalar**: BTC Turk, Paribu
 - ✅ **Bybit**: Timestamp sorunu tamamen çözüldü
-- ✅ **Binance**: Tam destek
-- ✅ **OKX**: Tam destek
 - ✅ GUI arayüzü
+- ✅ Otomatik deposit adresi alma
 - ✅ Otomatik bakiye kontrolü
 - ✅ Otomatik transfer (UNIFIED → FUND)
 - ✅ Detaylı log kaydı
@@ -26,6 +27,7 @@ cp .env.example .env
 
 3. `.env` dosyasına API anahtarlarınızı ekleyin:
 ```
+# Kaynak borsalar (en az birini doldurun)
 BYBIT_KEY=your_key
 BYBIT_SECRET=your_secret
 BINANCE_KEY=your_key
@@ -33,19 +35,29 @@ BINANCE_SECRET=your_secret
 OKX_KEY=your_key
 OKX_SECRET=your_secret
 OKX_PASSPHRASE=your_passphrase
+
+# Alıcı borsalar (en az birini doldurun)
+BTCTURK_KEY=your_key
+BTCTURK_SECRET=your_secret
+PARIBU_KEY=your_key
+PARIBU_SECRET=your_secret
 ```
 
-4. `config.json` dosyasını düzenleyin:
+4. `config.json` dosyasını düzenleyin (transfer edilecek coinleri listeleyin):
 ```json
 [
   {
     "symbol": "USDT",
-    "network": "TRC20",
-    "address": "YOUR_ADDRESS_HERE",
-    "memo": null
+    "network": "TRC20"
+  },
+  {
+    "symbol": "BTC",
+    "network": "BTC"
   }
 ]
 ```
+
+**Not**: Artık `address` ve `memo` alanlarına gerek yok - bunlar alıcı borsadan otomatik alınır.
 
 ## Kullanım
 
@@ -54,8 +66,14 @@ python bot.py
 ```
 
 GUI açıldıktan sonra:
-1. Kaynak borsayı seçin
-2. "🚀 TÜM COİNLERİ ÇEK" butonuna tıklayın
+1. **Kaynak borsa** seçin (Binance, Bybit veya OKX)
+2. **Alıcı borsa** seçin (BTC Turk veya Paribu)
+3. "🚀 TRANSFER BAŞLAT" butonuna tıklayın
+
+Bot otomatik olarak:
+- Alıcı borsadan deposit adresini alır
+- Kaynak borsadan bakiyeyi kontrol eder
+- Transfer işlemini başlatır
 
 ## Loglar
 
