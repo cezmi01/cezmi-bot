@@ -5,8 +5,6 @@ import time
 from decimal import Decimal, getcontext
 from typing import Dict
 
-import requests
-
 from ticker_karsilastir import (
     binance_ask_prices,   # {"BEAM": 0.0059, ...}
     btcturk_bid_prices,   # {"BEAM": 0.25, ...}
@@ -22,6 +20,9 @@ getcontext().prec = 28
 ARBITRAJ_THRESHOLD = Decimal("0.02")     # %2
 COOLDOWN_SECONDS   = 600                  # 10 dk
 TICK_INTERVAL      = 3                    # saniye
+COOLDOWN_MINUTES   = COOLDOWN_SECONDS // 60
+
+_SUCCESS_STRINGS = {"ok", "success", "true", "done", "1"}
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -47,6 +48,65 @@ def get_btcturk_prices() -> Dict[str, Decimal]:
     """ticker_karsilastir.bid → Decimal dict"""
     bids = btcturk_bid_prices()
     return {c: Decimal(p) for c, p in bids.items()}
+
+# ─────────────────────────── İŞLEM YARDIMCILARI ─────────────────────
+
+def _coerce_success_flag(value: object) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in _SUCCESS_STRINGS
+    return bool(value)
+
+
+def _normalize_spot_result(result: object) -> tuple[bool, str]:
+    if isinstance(result, tuple) and len(result) >= 2:
+        success, reason = result[0], result[1]
+        return bool(success), str(reason or "").strip()
+
+    if isinstance(result, dict):
+        success = (
+            result.get("success")
+            or result.get("ok")
+            or result.get("status")
+        )
+        reason = result.get("reason") or result.get("error") or ""
+        return _coerce_success_flag(success), str(reason).strip()
+
+    if isinstance(result, str):
+        normalized = result.strip()
+        if normalized.lower() in _SUCCESS_STRINGS:
+            return True, ""
+        return False, normalized
+
+    return bool(result), ""
+
+
+def _run_spot_flow(coin: str) -> tuple[bool, str]:
+    try:
+        outcome = spot_alim_hedge_transfer(coin)
+    except Exception as exc:  # pylint: disable=broad-except
+        return False, str(exc)
+    return _normalize_spot_result(outcome)
+
+
+def _should_apply_failure_cooldown(reason: str) -> bool:
+    if not reason:
+        return False
+    text = reason.lower()
+    no_balance = (
+        ("bakiye" in text and ("yok" in text or "yetersiz" in text))
+        or ("insufficient" in text and ("balance" in text or "funds" in text))
+    )
+    pair_issue = any(keyword in text for keyword in ("parite", "pair", "symbol"))
+    return no_balance or pair_issue
+
+
+def _apply_failure_cooldown(coin: str, reason: str) -> None:
+    last_buy_ts[coin] = time.time()
+    pretty_reason = reason or "sebep unspecified"
+    log(
+        f"⏸️ {coin}: hata nedeniyle {COOLDOWN_MINUTES} dk cooldown "
+        f"(neden: {pretty_reason})"
+    )
 
 # ─────────────────────────── ANA DÖNGÜ ──────────────────────────────
 
@@ -83,12 +143,16 @@ def arbitrage_cycle() -> None:
 
         if pct_diff >= ARBITRAJ_THRESHOLD and now - last_buy_ts.get(coin, 0) >= COOLDOWN_SECONDS:
             log(f"🚀 {coin}: fark %{pct_diff * 100:.2f} – işlem akışı başlatılıyor")
-            if spot_alim_hedge_transfer(coin):
-                last_buy_ts[coin] = now
+            success, fail_reason = _run_spot_flow(coin)
+            if success:
+                last_buy_ts[coin] = time.time()
                 pending_sale.add(coin)
             else:
-                log(f"❌ {coin}: Binance tarafı başarısız")
-                send_telegram(f"❌ {coin}: Binance alım / transfer hatası")
+                suffix = f" ({fail_reason})" if fail_reason else ""
+                log(f"❌ {coin}: Binance tarafı başarısız{suffix}")
+                send_telegram(f"❌ {coin}: Binance alım / transfer hatası{suffix}")
+                if _should_apply_failure_cooldown(fail_reason):
+                    _apply_failure_cooldown(coin, fail_reason)
 
 # ─────────────────────────── ÇALIŞTIRICI ────────────────────────────
 
