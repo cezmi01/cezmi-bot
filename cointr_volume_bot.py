@@ -4,8 +4,8 @@ CoinTR TRY Hacim Alarm Botu (10M TL altı filtre + boş symbol fix)
 -----------------------------------------------------------------
 - CoinTR'deki TÜM TRY spot pariteleri için:
     * 24h TRY hacmi (quoteVolume) 10.000.000 TL'nin ALTINDA olanları seçer.
-    * Bu paritelerde 1m ve 15m mum hacmini takip eder.
-    * Hacim, bir önceki muma göre x2 veya daha fazla artarsa Telegram'a bildirim gönderir.
+    * Bu paritelerde sadece 15m mum hacmini takip eder.
+    * Mum kapanınca hacim, bir önceki kapanan muma göre ≥ x2 (TRY bazında) arttıysa Telegram'a bildirim gönderir.
     * Aynı mum için birden fazla alarm göndermez.
 - Rate limit (429) yememek için:
     * Mum istekleri SIRAYLA atılır, her sembol arası küçük bekleme vardır.
@@ -146,6 +146,16 @@ def parse_decimal(raw: Any, default: str = "0") -> Decimal:
         return Decimal(default)
 
 
+def extract_quote_volume(candle: List[str]) -> Decimal:
+    """
+    CoinTR mum dizisinden quote (TRY) hacmini döndürür.
+    Beklenen format: [ts, open, high, low, close, baseVol, quoteVol, usdtVol, ...]
+    """
+    if not candle or len(candle) < 7:
+        return Decimal("0")
+    return parse_decimal(candle[6])
+
+
 # ─────────────────────────────────────────
 # CoinTR: Candlestick (mum) verisi
 # ─────────────────────────────────────────
@@ -159,7 +169,7 @@ async def get_klines(
     """
     GET /api/v2/spot/market/candles
     Response: [ [ts, open, high, low, close, baseVol, quoteVol, usdtVol], ... ]
-    ts = index[0], hacim (base) = index[5]
+    ts = index[0], quote hacmi (TRY) = index[6]
     """
     symbol = (symbol or "").strip()
     if not symbol:
@@ -214,8 +224,8 @@ async def check_symbol_volume(
 ):
     """
     Tek bir sembol için:
-    - 1m veya 15m mumlarını çeker (limit=2)
-    - Son mum hacmi, önceki muma göre en az x2 arttıysa alarm yollar.
+    - İlgili interval mumlarını çeker (limit=2)
+    - Son mumun TRY hacmi, bir önceki mumun en az iki katıysa alarm yollar.
     """
     global last_alerted_candle, last_candle_memory
 
@@ -230,10 +240,11 @@ async def check_symbol_volume(
         return
 
     last_candle = candles[-1]
+    prev_candle = candles[-2]
 
     try:
         last_ts = int(last_candle[0])
-        last_vol = parse_decimal(last_candle[5])
+        last_vol = extract_quote_volume(last_candle)
     except Exception as e:
         print(f"[{symbol} {interval_label}] Candle parse hatası: {e} -> {last_candle}")
         return
@@ -243,7 +254,12 @@ async def check_symbol_volume(
 
     # İlk kez görülen mum: sadece hafızaya al
     if not prev_entry:
-        last_candle_memory[key] = (last_ts, last_vol)
+        try:
+            prev_ts_seed = int(prev_candle[0])
+            prev_vol_seed = extract_quote_volume(prev_candle)
+            last_candle_memory[key] = (prev_ts_seed, prev_vol_seed)
+        except Exception as e:
+            print(f"[{symbol} {interval_label}] Seed hatası: {e}")
         return
 
     prev_ts, prev_vol = prev_entry
@@ -263,8 +279,8 @@ async def check_symbol_volume(
             text = (
                 f"📈 CoinTR Hacim Artışı ({interval_label})\n"
                 f"Sembol: {symbol}\n"
-                f"Önceki Hacim: {prev_vol}\n"
-                f"Son Hacim: {last_vol}\n"
+                f"Önceki TRY Hacmi: {prev_vol}\n"
+                f"Son TRY Hacmi: {last_vol}\n"
                 f"Artış Oranı: x{ratio}"
             )
             await send_telegram_message(text)
@@ -320,30 +336,22 @@ async def volume_watcher():
             f"İzlenen sembol sayısı: {len(filtered_symbols)}"
         )
 
-        last_1m_check = 0
         last_15m_check = 0
+        interval_seconds = 900
+        interval_label = "15m"
+        interval_granularity = "15min"
 
         # Her sembol arası bekleme (rate limit için)
         per_symbol_sleep = 0.2  # saniye
 
         while True:
             now = int(time.time())
-            do_1m = False
-            do_15m = False
-
-            if now - last_1m_check >= 60:
-                last_1m_check = now
-                do_1m = True
-                print("⏱ 1m mumlar kontrol ediliyor...")
-
-            if now - last_15m_check >= 900:
-                last_15m_check = now
-                do_15m = True
-                print("⏱ 15m mumlar kontrol ediliyor...")
-
-            if not (do_1m or do_15m):
+            if now - last_15m_check < interval_seconds:
                 await asyncio.sleep(1)
                 continue
+
+            last_15m_check = now
+            print("⏱ 15m mumlar kontrol ediliyor...")
 
             # Sembolleri SIRAYLA tara (async task yağmuru yok)
             for sym in filtered_symbols:
@@ -351,10 +359,7 @@ async def volume_watcher():
                 if not sym:
                     continue
 
-                if do_1m:
-                    await check_symbol_volume(session, sym, "1m", "1min")
-                if do_15m:
-                    await check_symbol_volume(session, sym, "15m", "15min")
+                await check_symbol_volume(session, sym, interval_label, interval_granularity)
 
                 # Her sembol arasında kısa uyku -> rate limit dostu
                 await asyncio.sleep(per_symbol_sleep)
