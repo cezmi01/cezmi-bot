@@ -5,7 +5,7 @@ CoinTR TRY Hacim Alarm Botu (10M TL altı filtre + boş symbol fix)
 - CoinTR'deki TÜM TRY spot pariteleri için:
     * 24h TRY hacmi (quoteVolume) 10.000.000 TL'nin ALTINDA olanları seçer.
     * Bu paritelerde 1m ve 15m mum hacmini takip eder.
-    * Hacim, bir önceki muma göre artarsa Telegram'a bildirim gönderir.
+    * Hacim, bir önceki muma göre x2 veya daha fazla artarsa Telegram'a bildirim gönderir.
     * Aynı mum için birden fazla alarm göndermez.
 - Rate limit (429) yememek için:
     * Mum istekleri SIRAYLA atılır, her sembol arası küçük bekleme vardır.
@@ -37,8 +37,10 @@ bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 DAILY_QUOTE_VOL_LIMIT = Decimal("10000000")  # 10 milyon TRY
 
-# (symbol, interval_label) -> last_ts
+# (symbol, interval_label) -> last alerted candle timestamp
 last_alerted_candle: Dict[Tuple[str, str], int] = {}
+# (symbol, interval_label) -> (last_ts, last_volume)
+last_candle_memory: Dict[Tuple[str, str], Tuple[int, Decimal]] = {}
 
 
 # ─────────────────────────────────────────
@@ -213,9 +215,9 @@ async def check_symbol_volume(
     """
     Tek bir sembol için:
     - 1m veya 15m mumlarını çeker (limit=2)
-    - Son mumun hacmi, bir önceki mumdan yüksekse alarm yollar.
+    - Son mum hacmi, önceki muma göre en az x2 arttıysa alarm yollar.
     """
-    global last_alerted_candle
+    global last_alerted_candle, last_candle_memory
 
     symbol = (symbol or "").strip()
     if not symbol:
@@ -227,39 +229,49 @@ async def check_symbol_volume(
     if len(candles) < 2:
         return
 
-    prev_candle = candles[-2]
     last_candle = candles[-1]
 
     try:
         last_ts = int(last_candle[0])
-        prev_vol = parse_decimal(prev_candle[5])
         last_vol = parse_decimal(last_candle[5])
     except Exception as e:
-        print(f"[{symbol} {interval_label}] Candle parse hatası: {e} -> {prev_candle} / {last_candle}")
+        print(f"[{symbol} {interval_label}] Candle parse hatası: {e} -> {last_candle}")
         return
 
     key = (symbol, interval_label)
+    prev_entry = last_candle_memory.get(key)
 
-    # Aynı mum için tekrar alarm atmayı engelle
-    if last_alerted_candle.get(key) == last_ts:
+    # İlk kez görülen mum: sadece hafızaya al
+    if not prev_entry:
+        last_candle_memory[key] = (last_ts, last_vol)
         return
 
-    # Hacim artışı varsa
-    if last_vol > prev_vol and prev_vol > 0:
-        try:
-            ratio = (last_vol / prev_vol).quantize(Decimal("0.01"))
-        except Exception:
-            ratio = Decimal("0")
+    prev_ts, prev_vol = prev_entry
 
-        text = (
-            f"📈 CoinTR Hacim Artışı ({interval_label})\n"
-            f"Sembol: {symbol}\n"
-            f"Önceki Hacim: {prev_vol}\n"
-            f"Son Hacim: {last_vol}\n"
-            f"Artış Oranı: x{ratio}"
-        )
-        await send_telegram_message(text)
-        last_alerted_candle[key] = last_ts
+    # Aynı mum tekrar geldiyse bekle
+    if last_ts <= prev_ts:
+        return
+
+    # X2 hacim artışı varsa bildir
+    if prev_vol > 0 and last_vol >= prev_vol * 2:
+        if last_alerted_candle.get(key) != last_ts:
+            try:
+                ratio = (last_vol / prev_vol).quantize(Decimal("0.01"))
+            except Exception:
+                ratio = Decimal("0")
+
+            text = (
+                f"📈 CoinTR Hacim Artışı ({interval_label})\n"
+                f"Sembol: {symbol}\n"
+                f"Önceki Hacim: {prev_vol}\n"
+                f"Son Hacim: {last_vol}\n"
+                f"Artış Oranı: x{ratio}"
+            )
+            await send_telegram_message(text)
+            last_alerted_candle[key] = last_ts
+
+    # Hafızayı güncelle
+    last_candle_memory[key] = (last_ts, last_vol)
 
 
 # ─────────────────────────────────────────
