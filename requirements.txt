@@ -1,0 +1,42 @@
+# MEV Bot Requirements
+# ====================
+
+# Core Web3 and Ethereum
+web3==6.11.3
+eth-account==0.10.0
+eth-utils==2.3.1
+eth-abi==4.2.1
+hexbytes==0.3.1
+
+# Configuration
+PyYAML==6.0.1
+python-dotenv==1.0.0
+
+# Async support
+aiohttp==3.9.1
+asyncio==3.4.3
+websockets==12.0
+
+# Data processing
+pandas==2.1.4
+numpy==1.26.2
+
+# Database
+SQLAlchemy==2.0.23
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+
+# Utilities
+python-dateutil==2.8.2
+requests==2.31.0
+
+# Monitoring and alerts (optional)
+python-telegram-bot==20.7
+discord-webhook==1.3.0
+
+# Development tools
+black==23.12.0
+flake8==6.1.0
+mypy==1.7.1

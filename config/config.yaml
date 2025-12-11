@@ -1,0 +1,170 @@
+# MEV Bot Configuration
+# =====================
+
+# Blockchain Settings
+blockchain:
+  # RPC endpoints - Use your own nodes for better performance
+  ethereum:
+    mainnet: "https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY"
+    goerli: "https://eth-goerli.g.alchemy.com/v2/YOUR_API_KEY"
+  bsc:
+    mainnet: "https://bsc-dataseed1.binance.org/"
+    testnet: "https://data-seed-prebsc-1-s1.binance.org:8545/"
+  polygon:
+    mainnet: "https://polygon-rpc.com"
+    mumbai: "https://rpc-mumbai.maticvigil.com"
+  
+  # Active network
+  active_network: "ethereum.mainnet"
+  
+  # WebSocket for mempool monitoring (required for MEV)
+  websocket_url: "wss://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY"
+
+# Wallet Configuration
+wallet:
+  # Your private key (NEVER commit this to git!)
+  private_key: "YOUR_PRIVATE_KEY_HERE"
+  # Public address (will be derived from private key)
+  address: ""
+
+# MEV Strategies
+strategies:
+  arbitrage:
+    enabled: true
+    min_profit_wei: 50000000000000000  # 0.05 ETH minimum
+    max_gas_price_gwei: 300
+    dex_pairs:
+      - ["uniswap_v2", "sushiswap"]
+      - ["uniswap_v3", "uniswap_v2"]
+      - ["pancakeswap", "apeswap"]
+  
+  sandwich:
+    enabled: true
+    min_profit_wei: 100000000000000000  # 0.1 ETH minimum
+    max_position_size_eth: 50
+    slippage_threshold: 0.05  # 5%
+    target_dexes:
+      - "uniswap_v2"
+      - "sushiswap"
+  
+  frontrun:
+    enabled: true
+    min_profit_wei: 30000000000000000  # 0.03 ETH
+    gas_price_multiplier: 1.2  # Pay 20% more gas
+    target_functions:
+      - "swapExactETHForTokens"
+      - "swapExactTokensForETH"
+      - "swapTokensForExactETH"
+  
+  backrun:
+    enabled: true
+    min_profit_wei: 20000000000000000  # 0.02 ETH
+    monitor_large_swaps: true
+    min_swap_size_eth: 10
+
+# Flash Loan Configuration
+flashloan:
+  enabled: true
+  providers:
+    aave:
+      enabled: true
+      lending_pool: "0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9"
+      fee_percentage: 0.0009  # 0.09%
+    dydx:
+      enabled: true
+      solo_margin: "0x1E0447b19BB6EcFdAe1e4AE1694b0C3659614e4e"
+      fee_percentage: 0.0002  # 0.02%
+  
+  max_loan_eth: 1000
+  safety_margin: 1.1  # Ensure 110% of required funds
+
+# DEX Configuration
+dex:
+  uniswap_v2:
+    factory: "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"
+    router: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
+    fee: 0.003
+  
+  uniswap_v3:
+    factory: "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+    router: "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+    quoter: "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
+  
+  sushiswap:
+    factory: "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac"
+    router: "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F"
+    fee: 0.003
+  
+  pancakeswap:
+    factory: "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73"
+    router: "0x10ED43C718714eb63d5aA57B78B54704E256024E"
+    fee: 0.0025
+
+# Gas Price Strategy
+gas:
+  priority: "aggressive"  # conservative, normal, aggressive, custom
+  max_gas_price_gwei: 500
+  gas_price_refresh_seconds: 2
+  custom_gas_multiplier: 1.15
+  
+  # EIP-1559 (if supported)
+  max_priority_fee_gwei: 3
+  max_fee_per_gas_gwei: 100
+
+# Risk Management
+risk:
+  max_position_size_eth: 100
+  max_slippage: 0.03  # 3%
+  stop_loss_percentage: 0.1  # Stop if we lose 10%
+  daily_loss_limit_eth: 5
+  emergency_withdraw: true
+
+# Monitoring & Logging
+monitoring:
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  log_to_file: true
+  log_rotation: "daily"
+  
+  # Telegram alerts (optional)
+  telegram:
+    enabled: false
+    bot_token: "YOUR_BOT_TOKEN"
+    chat_id: "YOUR_CHAT_ID"
+  
+  # Discord webhooks (optional)
+  discord:
+    enabled: false
+    webhook_url: "YOUR_WEBHOOK_URL"
+  
+  # Performance metrics
+  track_metrics: true
+  metrics_interval_seconds: 60
+
+# Database (for storing transactions and analytics)
+database:
+  enabled: true
+  type: "sqlite"  # sqlite, postgresql, mongodb
+  path: "logs/mev_bot.db"
+  # For PostgreSQL
+  # host: "localhost"
+  # port: 5432
+  # database: "mev_bot"
+  # username: "mev_user"
+  # password: "secure_password"
+
+# Simulation & Testing
+simulation:
+  enabled: true  # Test transactions before executing
+  fork_url: "https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY"
+  anvil_enabled: false
+  
+# Advanced Features
+advanced:
+  use_multicall: true
+  batch_transactions: true
+  priority_mempool: false  # Requires special RPC access
+  mev_relay: false  # Use Flashbots or other MEV relays
+  flashbots:
+    enabled: false
+    relay_url: "https://relay.flashbots.net"
+    auth_key: ""
