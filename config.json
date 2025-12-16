@@ -434,5 +434,15 @@
       "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
       "memo": null
     }
+  },
+  {
+    "symbol": "EIGEN",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "EIGEN",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
