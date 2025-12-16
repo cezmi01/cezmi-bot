@@ -714,5 +714,15 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "KAVA",
+    "network": "KAVAEVM",
+    "btcturk": {
+      "symbol": "KAVA",
+      "network": "KAVAEVM",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
