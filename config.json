@@ -644,5 +644,15 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "INJ",
+    "network": "INJ",
+    "btcturk": {
+      "symbol": "INJ",
+      "network": "INJ",
+      "address": "inj1x97lm8gak359hjw7ctsvp82lza5kp9a7p3zrvw",
+      "memo": "269099218209C70A8B1A"
+    }
   }
 ]
