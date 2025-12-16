@@ -1564,5 +1564,15 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "FIL",
+    "network": "FIL",
+    "btcturk": {
+      "symbol": "FIL",
+      "network": "FIL",
+      "address": "f1gzovv7mktkg5szgfieq343y7ww4dtznq4g3qmvi",
+      "memo": null
+    }
   }
 ]
