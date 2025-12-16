@@ -604,5 +604,15 @@
       "address": "0.0.9610756",
       "memo": "224902902856361"
     }
+  },
+  {
+    "symbol": "HNT",
+    "network": "SOL",
+    "btcturk": {
+      "symbol": "HNT",
+      "network": "SOL",
+      "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
+      "memo": null
+    }
   }
 ]
