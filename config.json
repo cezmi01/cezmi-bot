@@ -374,5 +374,15 @@
       "address": "cosmos13rf3upgznjvrwdgwje7ts8ja605a06hvaqlt7d",
       "memo": "D56939F1A249624AC8E2"
     }
+  },
+  {
+    "symbol": "CRV",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "CRV",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
