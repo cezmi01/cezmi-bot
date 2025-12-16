@@ -594,5 +594,15 @@
       "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
       "memo": null
     }
+  },
+  {
+    "symbol": "HBAR",
+    "network": "HEDERA",
+    "btcturk": {
+      "symbol": "HBAR",
+      "network": "HEDERA",
+      "address": "0.0.9610756",
+      "memo": "224902902856361"
+    }
   }
 ]
