@@ -764,5 +764,15 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "LINEA",
+    "network": "LINEA",
+    "btcturk": {
+      "symbol": "LINEA",
+      "network": "LINEA",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
