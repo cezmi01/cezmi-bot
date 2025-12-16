@@ -774,5 +774,15 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "LTC",
+    "network": "LTC",
+    "btcturk": {
+      "symbol": "LTC",
+      "network": "LTC",
+      "address": "ltc1q7epp8y4mahgcdmz5jnazh4ryu05zhkmfcvjc56",
+      "memo": null
+    }
   }
 ]
