@@ -624,5 +624,25 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "RLC",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "RLC",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "IMX",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "IMX",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
