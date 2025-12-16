@@ -1314,5 +1314,15 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "SUI",
+    "network": "SUI",
+    "btcturk": {
+      "symbol": "SUI",
+      "network": "SUI",
+      "address": "0xf7c577da9d31d859c23f9fc63b5011b8f11de7b7aa53cba0903374d2e0fedebb",
+      "memo": null
+    }
   }
 ]
