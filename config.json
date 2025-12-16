@@ -784,5 +784,35 @@
       "address": "ltc1q7epp8y4mahgcdmz5jnazh4ryu05zhkmfcvjc56",
       "memo": null
     }
+  },
+  {
+    "symbol": "LPT",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "LPT",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "LRC",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "LRC",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "MAGIC",
+    "network": "ARBITRUM",
+    "btcturk": {
+      "symbol": "MAGIC",
+      "network": "ARBITRUM",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
