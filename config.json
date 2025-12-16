@@ -1184,5 +1184,25 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "SEI",
+    "network": "SEI",
+    "btcturk": {
+      "symbol": "SEI",
+      "network": "SEI",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "SHIB",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "SHIB",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
