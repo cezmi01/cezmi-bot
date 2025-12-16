@@ -744,5 +744,15 @@
       "address": "GUKaBM1j46EXXJK9GzGmzR4UtJc3LpdhNKPhzAFEYvdc4sg",
       "memo": null
     }
+  },
+  {
+    "symbol": "ZRO",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "ZRO",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
