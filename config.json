@@ -5,7 +5,7 @@
     "btcturk": {
       "symbol": "QNT",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     },
     "paribu": {
@@ -1120,6 +1120,16 @@
     "network": "SOL",
     "btcturk": {
       "symbol": "PUMP",
+      "network": "SOL",
+      "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "PYTH",
+    "network": "SOL",
+    "btcturk": {
+      "symbol": "PYTH",
       "network": "SOL",
       "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
       "memo": null
