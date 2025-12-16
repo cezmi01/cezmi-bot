@@ -1414,5 +1414,15 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "RUNE",
+    "network": "THORCHAIN",
+    "btcturk": {
+      "symbol": "RUNE",
+      "network": "THORCHAIN",
+      "address": "thor1hf3dqm5jm6v0tr3qwz2xmqdww2y7zqlc98mqsc",
+      "memo": "DA887245D4412D872466"
+    }
   }
 ]
