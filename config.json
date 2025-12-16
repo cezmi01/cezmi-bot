@@ -424,5 +424,15 @@
       "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
       "memo": null
     }
+  },
+  {
+    "symbol": "2Z",
+    "network": "SOL",
+    "btcturk": {
+      "symbol": "2Z",
+      "network": "SOL",
+      "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
+      "memo": null
+    }
   }
 ]
