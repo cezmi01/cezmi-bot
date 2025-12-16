@@ -21,7 +21,7 @@
     "btcturk": {
       "symbol": "0G",
       "network": "0G",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -31,7 +31,7 @@
     "btcturk": {
       "symbol": "ZRX",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -41,7 +41,7 @@
     "btcturk": {
       "symbol": "AAVE",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -51,7 +51,7 @@
     "btcturk": {
       "symbol": "ATH",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -61,7 +61,7 @@
     "btcturk": {
       "symbol": "AIOZ",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -71,7 +71,7 @@
     "btcturk": {
       "symbol": "AIXBT",
       "network": "BASE",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -81,7 +81,7 @@
     "btcturk": {
       "symbol": "AMP",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -91,7 +91,7 @@
     "btcturk": {
       "symbol": "ANIME",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -101,7 +101,7 @@
     "btcturk": {
       "symbol": "ANKR",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -111,7 +111,7 @@
     "btcturk": {
       "symbol": "APE",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -121,7 +121,7 @@
     "btcturk": {
       "symbol": "API3",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -131,7 +131,7 @@
     "btcturk": {
       "symbol": "ARB",
       "network": "ARBITRUM",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -141,7 +141,7 @@
     "btcturk": {
       "symbol": "ARKM",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -151,7 +151,7 @@
     "btcturk": {
       "symbol": "ARPA",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -161,7 +161,7 @@
     "btcturk": {
       "symbol": "AUDIO",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -171,7 +171,7 @@
     "btcturk": {
       "symbol": "AVAX",
       "network": "AVAXC",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -181,7 +181,7 @@
     "btcturk": {
       "symbol": "AVNT",
       "network": "BASE",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -201,7 +201,7 @@
     "btcturk": {
       "symbol": "AXS",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -211,7 +211,7 @@
     "btcturk": {
       "symbol": "BNT",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -221,7 +221,7 @@
     "btcturk": {
       "symbol": "BAND",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -231,7 +231,7 @@
     "btcturk": {
       "symbol": "BAT",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -241,7 +241,7 @@
     "btcturk": {
       "symbol": "BEAMX",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -251,7 +251,7 @@
     "btcturk": {
       "symbol": "BIO",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -261,7 +261,7 @@
     "btcturk": {
       "symbol": "BLUR",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -281,7 +281,7 @@
     "btcturk": {
       "symbol": "ZKC",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -291,7 +291,7 @@
     "btcturk": {
       "symbol": "ERA",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -311,7 +311,7 @@
     "btcturk": {
       "symbol": "CTSI",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -331,7 +331,7 @@
     "btcturk": {
       "symbol": "LINK",
       "network": "ETH",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
@@ -341,7 +341,7 @@
     "btcturk": {
       "symbol": "CHZ",
       "network": "CHZ2",
-      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
   },
