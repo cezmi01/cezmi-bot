@@ -684,5 +684,35 @@
       "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
       "memo": null
     }
+  },
+  {
+    "symbol": "JUP",
+    "network": "SOL",
+    "btcturk": {
+      "symbol": "JUP",
+      "network": "SOL",
+      "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "JUV",
+    "network": "CHZ2",
+    "btcturk": {
+      "symbol": "JUV",
+      "network": "CHZ2",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "KAITO",
+    "network": "BASE",
+    "btcturk": {
+      "symbol": "KAITO",
+      "network": "BASE",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
