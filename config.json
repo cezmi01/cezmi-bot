@@ -1154,5 +1154,25 @@
       "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
       "memo": null
     }
+  },
+  {
+    "symbol": "XRP",
+    "network": "XRP",
+    "btcturk": {
+      "symbol": "XRP",
+      "network": "XRP",
+      "address": "rDZaKrg5SEBRY13WaQbTb1bwr7HCBBrEkK",
+      "memo": "2036825357"
+    }
+  },
+  {
+    "symbol": "ASR",
+    "network": "CHZ2",
+    "btcturk": {
+      "symbol": "ASR",
+      "network": "CHZ2",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
