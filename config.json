@@ -1384,5 +1384,15 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "XTZ",
+    "network": "XTZ",
+    "btcturk": {
+      "symbol": "XTZ",
+      "network": "XTZ",
+      "address": "tz1PVHq8S6omGWFSkm1CfCvXq6bnYR8VKHUt",
+      "memo": null
+    }
   }
 ]
