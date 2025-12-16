@@ -844,5 +844,15 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "OM",
+    "network": "MANTRA",
+    "btcturk": {
+      "symbol": "OM",
+      "network": "MANTRA",
+      "address": "mantra13rf3upgznjvrwdgwje7ts8ja605a06hvkt40ah",
+      "memo": "65ECBD95DDB7D644EAEE"
+    }
   }
 ]
