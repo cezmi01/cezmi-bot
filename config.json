@@ -1374,5 +1374,15 @@
       "address": "terra14zp2f6lsgjt5q0ukzlwctv74478c2jwd7ms24d",
       "memo": "081426739DE4E6181AF4"
     }
+  },
+  {
+    "symbol": "XAUT",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "XAUT",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
