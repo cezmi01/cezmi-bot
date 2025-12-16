@@ -1094,5 +1094,25 @@
       "address": "15KPELt6Z8JwjfV7WjwNDXqN8fpefHJT4dK5tyKi8vtQjrHy",
       "memo": null
     }
+  },
+  {
+    "symbol": "POL",
+    "network": "POLYGON",
+    "btcturk": {
+      "symbol": "POL",
+      "network": "POLYGON",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "PENGU",
+    "network": "SOL",
+    "btcturk": {
+      "symbol": "PENGU",
+      "network": "SOL",
+      "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
+      "memo": null
+    }
   }
 ]
