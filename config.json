@@ -414,5 +414,15 @@
       "address": "DFCSb7QLW6vWConLnyrbRddMZQsK9ceQUq",
       "memo": null
     }
+  },
+  {
+    "symbol": "WIF",
+    "network": "SOL",
+    "btcturk": {
+      "symbol": "WIF",
+      "network": "SOL",
+      "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
+      "memo": null
+    }
   }
 ]
