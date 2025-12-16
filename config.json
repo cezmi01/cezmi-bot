@@ -1294,5 +1294,25 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "XLM",
+    "network": "XLM",
+    "btcturk": {
+      "symbol": "XLM",
+      "network": "XLM",
+      "address": "GABEPYJLPBU6DDXFO2RX6CZX7XBQJBPXIRW3NVC6PE64VW3MZBR52LD2",
+      "memo": "3124986478"
+    }
+  },
+  {
+    "symbol": "STORJ",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "STORJ",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
