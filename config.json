@@ -894,5 +894,25 @@
       "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
       "memo": null
     }
+  },
+  {
+    "symbol": "MIRA",
+    "network": "BASE",
+    "btcturk": {
+      "symbol": "MIRA",
+      "network": "BASE",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "MON",
+    "network": "MONAD",
+    "btcturk": {
+      "symbol": "MON",
+      "network": "MONAD",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
