@@ -1,0 +1,348 @@
+[
+  {
+    "symbol": "QNT",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "QNT",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    },
+    "paribu": {
+      "symbol": "ETH",
+      "network": "ETH",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "0G",
+    "network": "0G",
+    "btcturk": {
+      "symbol": "0G",
+      "network": "0G",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "ZRX",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "ZRX",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "AAVE",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "AAVE",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "ATH",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "ATH",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "AIOZ",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "AIOZ",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "AIXBT",
+    "network": "BASE",
+    "btcturk": {
+      "symbol": "AIXBT",
+      "network": "BASE",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "AMP",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "AMP",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "ANIME",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "ANIME",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "ANKR",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "ANKR",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "APE",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "APE",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "API3",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "API3",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "ARB",
+    "network": "ARBITRUM",
+    "btcturk": {
+      "symbol": "ARB",
+      "network": "ARBITRUM",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "ARKM",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "ARKM",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "ARPA",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "ARPA",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "AUDIO",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "AUDIO",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "AVAX",
+    "network": "AVAXC",
+    "btcturk": {
+      "symbol": "AVAX",
+      "network": "AVAXC",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "AVNT",
+    "network": "BASE",
+    "btcturk": {
+      "symbol": "AVNT",
+      "network": "BASE",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "AXL",
+    "network": "AXL",
+    "btcturk": {
+      "symbol": "AXL",
+      "network": "AXL",
+      "address": "axelar13rf3upgznjvrwdgwje7ts8ja605a06hvewfr4v",
+      "memo": "1AAADAAF44A06FA7DFC9"
+    }
+  },
+  {
+    "symbol": "AXS",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "AXS",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "BNT",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "BNT",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "BAND",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "BAND",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "BAT",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "BAT",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "BEAMX",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "BEAMX",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "BIO",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "BIO",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "BLUR",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "BLUR",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "BONK",
+    "network": "SOL",
+    "btcturk": {
+      "symbol": "BONK",
+      "network": "SOL",
+      "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "ZKC",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "ZKC",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "ERA",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "ERA",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "ADA",
+    "network": "ADA",
+    "btcturk": {
+      "symbol": "ADA",
+      "network": "ADA",
+      "address": "addr1q99e2ehhxyq334wzq8754szghr6868t9fqqgycm9qtzrugk3vqz0eq9lr3tp3rjd4e9dx2mrcy5l0dphr45kvq7m9u8s24rrx7",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "CTSI",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "CTSI",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "TIA",
+    "network": "TIA",
+    "btcturk": {
+      "symbol": "TIA",
+      "network": "TIA",
+      "address": "celestia13rf3upgznjvrwdgwje7ts8ja605a06hvv2wmyq",
+      "memo": "AF4F904CC880C73662D7"
+    }
+  },
+  {
+    "symbol": "LINK",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "LINK",
+      "network": "ETH",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "CHZ",
+    "network": "CHZ2",
+    "btcturk": {
+      "symbol": "CHZ",
+      "network": "CHZ2",
+      "address": "0x8C586E83E49530c9440BF262E9fe66Fa049c8f8F",
+      "memo": null
+    }
+  }
+]
