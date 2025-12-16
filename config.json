@@ -1474,5 +1474,25 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "UMA",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "UMA",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "VANA",
+    "network": "VANA",
+    "btcturk": {
+      "symbol": "VANA",
+      "network": "VANA",
+      "address": "0xA958264df267D1210837A3EC7080A8DF29ec1C7a",
+      "memo": null
+    }
   }
 ]
