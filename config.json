@@ -1434,5 +1434,35 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "TON",
+    "network": "TON",
+    "btcturk": {
+      "symbol": "TON",
+      "network": "TON",
+      "address": "UQBUd5ECN7eGD6a0ylE8xoS5_N7GZ6ai3LqtRoNapcAW4Y_Z",
+      "memo": "482E6BE080FC55D46A79"
+    }
+  },
+  {
+    "symbol": "TRX",
+    "network": "TRC20",
+    "btcturk": {
+      "symbol": "TRX",
+      "network": "TRC20",
+      "address": "TRpaxLxHBWcoWm4YPsx9nfu8DHmnft6boc",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "TURBO",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "TURBO",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
