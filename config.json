@@ -654,5 +654,15 @@
       "address": "inj1x97lm8gak359hjw7ctsvp82lza5kp9a7p3zrvw",
       "memo": "269099218209C70A8B1A"
     }
+  },
+  {
+    "symbol": "IO",
+    "network": "SOL",
+    "btcturk": {
+      "symbol": "IO",
+      "network": "SOL",
+      "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
+      "memo": null
+    }
   }
 ]
