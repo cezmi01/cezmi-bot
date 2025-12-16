@@ -514,5 +514,15 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "ATM",
+    "network": "CHZ2",
+    "btcturk": {
+      "symbol": "ATM",
+      "network": "CHZ2",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
