@@ -474,5 +474,15 @@
       "address": "0xd46E175634f08bc06eBb500dE3b45A1AC42c8248",
       "memo": null
     }
+  },
+  {
+    "symbol": "ENS",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "ENS",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
