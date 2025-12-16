@@ -1504,5 +1504,25 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "WCT",
+    "network": "OPTIMISM",
+    "btcturk": {
+      "symbol": "WCT",
+      "network": "OPTIMISM",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "WLFI",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "WLFI",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
   }
 ]
