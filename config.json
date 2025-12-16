@@ -944,5 +944,15 @@
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
     }
+  },
+  {
+    "symbol": "NEAR",
+    "network": "NEAR",
+    "btcturk": {
+      "symbol": "NEAR",
+      "network": "NEAR",
+      "address": "26dd5cdc70906eb6357fbe99084a849088700094923d17c34aff3af31dee68f7",
+      "memo": null
+    }
   }
 ]
