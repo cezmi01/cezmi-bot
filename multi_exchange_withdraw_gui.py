@@ -42,6 +42,7 @@ REQUIRE_STATIC_IP = False
 WITHDRAW_DELAY = 0.3  # Çekimler arası bekleme süresi (saniye)
 BALANCE_BATCH_SIZE = 10  # Bakiye kontrolü batch boyutu
 BALANCE_BATCH_DELAY = 0.5  # Batch'ler arası bekleme (saniye)
+MIN_BALANCE_USD = 1.0  # Minimum bakiye eşiği (USD karşılığı tahmini - toz filtresi)
 
 
 def write_log(row: dict):
@@ -571,23 +572,43 @@ class BybitAdapter(BaseExchange):
         # ══════════════════════════════════════════════════════════
         # 1. Bybit API'den coin bilgilerini çek (chain, fee, min)
         # ══════════════════════════════════════════════════════════
-        coin_info_data, coin_info_status = await self._get(
-            session,
-            "/v5/asset/coin/query-info",
-            {"coin": sym},
-        )
-        
         chain = None
         fee = Decimal("0")
         min_amount = Decimal("0")
         
         want_network = (network or "").strip().upper()
         
+        # Önce /v5/asset/coin/query-info endpoint'ini dene
+        coin_info_data, coin_info_status = await self._get(
+            session,
+            "/v5/asset/coin/query-info",
+            {"coin": sym},
+        )
+        
+        write_log({
+            "exchange": self.name,
+            "symbol": sym,
+            "note": "BYBIT_COIN_INFO_RAW",
+            "status": coin_info_status,
+            "retCode": coin_info_data.get("retCode") if isinstance(coin_info_data, dict) else None,
+            "result_keys": list(coin_info_data.get("result", {}).keys()) if isinstance(coin_info_data, dict) else None,
+        })
+        
         if coin_info_status == 200 and coin_info_data.get("retCode") == 0:
-            rows = coin_info_data.get("result", {}).get("rows", [])
+            result = coin_info_data.get("result", {})
+            rows = result.get("rows", [])
+            
+            # Eğer rows boşsa, result direkt coin bilgisi içeriyor olabilir
+            if not rows and isinstance(result, dict):
+                # Alternatif yapı kontrolü
+                if "chains" in result:
+                    rows = [{"coin": sym, "chains": result.get("chains", [])}]
+                elif "coin" in result:
+                    rows = [result]
             
             for row in rows:
-                if row.get("coin", "").upper() != sym:
+                row_coin = row.get("coin", row.get("name", "")).upper()
+                if row_coin != sym:
                     continue
                     
                 chains = row.get("chains", [])
@@ -596,7 +617,7 @@ class BybitAdapter(BaseExchange):
                     "exchange": self.name,
                     "symbol": sym,
                     "note": "BYBIT_CHAINS_AVAILABLE",
-                    "chains": [{"chain": c.get("chain"), "chainType": c.get("chainType")} for c in chains],
+                    "chains": [{"chain": c.get("chain"), "chainType": c.get("chainType"), "withdrawFee": c.get("withdrawFee"), "withdrawMin": c.get("withdrawMin")} for c in chains],
                     "requested_network": want_network,
                 })
                 
@@ -606,21 +627,32 @@ class BybitAdapter(BaseExchange):
                 for ch in chains:
                     chain_name = ch.get("chain", "")
                     chain_type = ch.get("chainType", "")
-                    can_withdraw = str(ch.get("withdrawEnable", "")).lower() == "true"
+                    # withdrawEnable boolean veya string olabilir
+                    withdraw_enable = ch.get("withdrawEnable")
+                    can_withdraw = withdraw_enable is True or str(withdraw_enable).lower() in ("true", "1")
                     
                     if not can_withdraw:
                         continue
                     
                     # Eğer network belirtilmişse, eşleşeni bul
                     if want_network:
+                        chain_name_upper = chain_name.upper()
+                        chain_type_upper = chain_type.upper()
+                        
                         # Tam eşleşme
-                        if chain_name.upper() == want_network or chain_type.upper() == want_network:
+                        if chain_name_upper == want_network or chain_type_upper == want_network:
                             selected_chain = ch
                             break
-                        # Chain içinde network adı geçiyor mu
-                        if want_network in chain_name.upper() or want_network in chain_type.upper():
+                        # Kısmi eşleşme
+                        if want_network in chain_name_upper or want_network in chain_type_upper:
                             selected_chain = ch
                             break
+                        # Chain formatı: COIN-NETWORK şeklinde olabilir (örn: ETH-ERC20)
+                        if "-" in chain_name:
+                            chain_suffix = chain_name.split("-")[-1].upper()
+                            if chain_suffix == want_network or want_network in chain_suffix:
+                                selected_chain = ch
+                                break
                     else:
                         # Network belirtilmemişse ilk withdraw edilebilir chain'i al
                         if selected_chain is None:
@@ -647,12 +679,21 @@ class BybitAdapter(BaseExchange):
                     })
                 break
         
-        # API'den chain bulunamadıysa, config'den veya varsayılan kullan
+        # API'den chain bulunamadıysa, config'deki network'ü kullan
         if not chain:
-            cfg = self.COINS.get(sym, {"chain": None, "fee": "0.001", "min": "0.01"})
-            chain = self._normalize_chain(sym, network or cfg.get("chain"))
-            fee = Decimal(cfg["fee"])
-            min_amount = Decimal(cfg["min"])
+            # Config'den gelen network varsa onu kullan
+            if network:
+                chain = self._normalize_chain(sym, network)
+                # Fee ve min için varsayılan değerler (API'den alınamadı)
+                cfg = self.COINS.get(sym, {"fee": "0.001", "min": "0.01"})
+                fee = Decimal(cfg.get("fee", "0.001"))
+                min_amount = Decimal(cfg.get("min", "0.01"))
+            else:
+                # COINS sözlüğünden al
+                cfg = self.COINS.get(sym, {"chain": sym, "fee": "0.001", "min": "0.01"})
+                chain = self._normalize_chain(sym, cfg.get("chain"))
+                fee = Decimal(cfg["fee"])
+                min_amount = Decimal(cfg["min"])
             
             write_log({
                 "exchange": self.name,
@@ -661,6 +702,7 @@ class BybitAdapter(BaseExchange):
                 "chain": chain,
                 "fee": str(fee),
                 "min": str(min_amount),
+                "reason": "API returned no valid chain info",
             })
 
         # ══════════════════════════════════════════════════════════
@@ -1235,9 +1277,27 @@ async def run_withdraw_flow(exchange_name: str, target_exchange: str, coins: lis
         # ══════════════════════════════════════════════════════════
         # 2. ADIM: Sadece bakiyesi > 0 olanları filtrele
         # ══════════════════════════════════════════════════════════
-        coins_with_balance = [(coin, bal) for coin, bal in results if bal > 0]
+        coins_with_balance_raw = [(coin, bal) for coin, bal in results if bal > 0]
         
-        q.put(f"✅ Bakiye taraması tamamlandı: {len(coins_with_balance)} coin'de bakiye var")
+        q.put(f"📊 {len(coins_with_balance_raw)} coin'de bakiye bulundu")
+        
+        # Toz bakiyeleri filtrele (çok küçük miktarlar)
+        # Basit bir eşik: 0.001'den küçük bakiyeleri atla (çoğu coin için toz)
+        MIN_DUST_THRESHOLD = Decimal("0.0001")
+        coins_with_balance = []
+        dust_count = 0
+        
+        for coin, bal in coins_with_balance_raw:
+            # Çok küçük bakiyeleri atla (genelde çekilemez)
+            if bal < MIN_DUST_THRESHOLD:
+                dust_count += 1
+                continue
+            coins_with_balance.append((coin, bal))
+        
+        if dust_count > 0:
+            q.put(f"🧹 {dust_count} toz bakiye atlandı")
+        
+        q.put(f"✅ Çekilebilir: {len(coins_with_balance)} coin")
         
         if not coins_with_balance:
             q.put("⚪ Çekilecek bakiye yok")
