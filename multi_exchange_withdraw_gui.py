@@ -444,35 +444,75 @@ class BybitAdapter(BaseExchange):
         """Tüm hesaplardan tüm bakiyeleri tek seferde çek (rate limit'i önler)"""
         all_balances = {}
         
-        # 1. UNIFIED hesabındaki tüm bakiyeler
-        unified_data, unified_status = await self._get(
+        # 1. UNIFIED TRADING hesabındaki bakiyeler (wallet-balance endpoint)
+        unified_wallet_data, unified_wallet_status = await self._get(
             session,
-            "/v5/asset/transfer/query-account-coins-balance",
+            "/v5/account/wallet-balance",
             {"accountType": "UNIFIED"},
         )
         
-        if unified_status == 200 and unified_data.get("retCode") == 0:
-            coins = unified_data.get("result", {}).get("balance", [])
-            for coin in coins:
-                sym = coin.get("coin", "").upper()
-                if not sym:
-                    continue
-                try:
-                    transfer_bal = Decimal(str(coin.get("transferBalance", "0")))
-                    wallet_bal = Decimal(str(coin.get("walletBalance", "0")))
-                    available = transfer_bal if transfer_bal > 0 else wallet_bal
-                    if available > 0:
-                        all_balances[sym] = {"balance": available, "account": "UNIFIED"}
-                        self._last_balance_account = "UNIFIED"
-                except:
-                    pass
+        if unified_wallet_status == 200 and unified_wallet_data.get("retCode") == 0:
+            account_list = unified_wallet_data.get("result", {}).get("list", [])
+            for account in account_list:
+                coins = account.get("coin", [])
+                for coin in coins:
+                    sym = coin.get("coin", "").upper()
+                    if not sym:
+                        continue
+                    try:
+                        # availableToWithdraw: çekilebilir miktar
+                        # walletBalance: toplam bakiye
+                        # equity: özkaynak
+                        available_withdraw = Decimal(str(coin.get("availableToWithdraw", "0")))
+                        wallet_bal = Decimal(str(coin.get("walletBalance", "0")))
+                        equity = Decimal(str(coin.get("equity", "0")))
+                        
+                        # En yüksek kullanılabilir değeri al
+                        available = max(available_withdraw, wallet_bal, equity)
+                        
+                        if available > 0:
+                            all_balances[sym] = {"balance": available, "account": "UNIFIED"}
+                            self._last_balance_account = "UNIFIED"
+                    except:
+                        pass
         
         write_log({
             "exchange": self.name,
-            "note": "UNIFIED_ALL_BALANCES",
+            "note": "UNIFIED_WALLET_BALANCES",
             "count": len(all_balances),
             "coins": {k: str(v["balance"]) for k, v in all_balances.items()},
         })
+        
+        # 2. UNIFIED hesabındaki transfer edilebilir bakiyeler (eski endpoint - yedek)
+        if len(all_balances) == 0:
+            unified_data, unified_status = await self._get(
+                session,
+                "/v5/asset/transfer/query-account-coins-balance",
+                {"accountType": "UNIFIED"},
+            )
+            
+            if unified_status == 200 and unified_data.get("retCode") == 0:
+                coins = unified_data.get("result", {}).get("balance", [])
+                for coin in coins:
+                    sym = coin.get("coin", "").upper()
+                    if not sym:
+                        continue
+                    try:
+                        transfer_bal = Decimal(str(coin.get("transferBalance", "0")))
+                        wallet_bal = Decimal(str(coin.get("walletBalance", "0")))
+                        available = transfer_bal if transfer_bal > 0 else wallet_bal
+                        if available > 0:
+                            all_balances[sym] = {"balance": available, "account": "UNIFIED"}
+                            self._last_balance_account = "UNIFIED"
+                    except:
+                        pass
+            
+            write_log({
+                "exchange": self.name,
+                "note": "UNIFIED_TRANSFER_BALANCES",
+                "count": len(all_balances),
+                "coins": {k: str(v["balance"]) for k, v in all_balances.items()},
+            })
         
         # 2. FUND hesabındaki tüm bakiyeler
         fund_data, fund_status = await self._get(
