@@ -109,6 +109,7 @@ class BybitAdapter(BaseExchange):
         "OPTIMISM": ["OP", "OPTIMISM"],
         "SOL": ["SOL", "SOLANA"],
         "SEIEVM": ["SEIEVM", "SEI-EVM"],
+        "SEI": ["SEIEVM", "SEI"],  # EVM öncelikli (çoğu borsa EVM kullanıyor)
         "CHZ2": ["CHILIZ", "CHZ2", "CHILIZ2", "CHZ"],
         "CHILIZ": ["CHILIZ", "CHZ2", "CHZ"],
         "FTM": ["FTM", "FANTOM", "OPERA"],
@@ -116,7 +117,7 @@ class BybitAdapter(BaseExchange):
         "ONE": ["ONE", "HARMONY"],
         "ATOM": ["ATOM", "COSMOS", "GAIA"],
         "OSMO": ["OSMO", "OSMOSIS"],
-        "KAVA": ["KAVA", "KAVAEVM"],
+        "KAVA": ["KAVAEVM", "KAVA"],  # EVM öncelikli
         "CELO": ["CELO"],
         "NEAR": ["NEAR"],
         "ALGO": ["ALGO", "ALGORAND"],
@@ -884,6 +885,27 @@ class BybitAdapter(BaseExchange):
                 # Chain seçimi
                 selected_chain = None
                 
+                # Adres 0x ile başlıyorsa EVM chain'lerini tercih et
+                is_evm_address = address.startswith("0x") if address else False
+                
+                # EVM chain varyantları (native → EVM mapping)
+                EVM_VARIANTS = {
+                    "SEI": "SEIEVM",
+                    "KAVA": "KAVAEVM", 
+                    "CELO": "CELOEVM",
+                    "CANTO": "CANTOEVM",
+                    "KLAYTN": "KLAYTNEVM",
+                }
+                
+                # Eğer EVM adresi ve native chain isteniyorsa, EVM varyantını tercih et
+                if is_evm_address and want_network in EVM_VARIANTS:
+                    evm_chain = EVM_VARIANTS[want_network]
+                    # Bybit'te EVM chain var mı kontrol et
+                    for ch in chains:
+                        if ch.get("chain", "").upper() == evm_chain:
+                            want_network = evm_chain
+                            break
+                
                 # want_network için olası eşleşmeler (class-level CHAIN_ALIASES kullan)
                 possible_matches = self.CHAIN_ALIASES.get(want_network, [want_network])
                 
@@ -892,6 +914,7 @@ class BybitAdapter(BaseExchange):
                     "symbol": sym,
                     "note": "CHAIN_MATCHING_DEBUG",
                     "want_network": want_network,
+                    "is_evm_address": is_evm_address,
                     "possible_matches": possible_matches,
                     "available_chains": [c.get("chain") for c in chains],
                 })
