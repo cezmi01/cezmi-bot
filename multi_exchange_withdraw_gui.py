@@ -40,6 +40,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 UI_POLL_MS = 100
 REQUIRE_STATIC_IP = False
 WITHDRAW_DELAY = 0.3  # Çekimler arası bekleme süresi (saniye)
+BALANCE_BATCH_SIZE = 10  # Bakiye kontrolü batch boyutu
+BALANCE_BATCH_DELAY = 0.5  # Batch'ler arası bekleme (saniye)
 
 
 def write_log(row: dict):
@@ -1093,35 +1095,50 @@ async def run_withdraw_flow(exchange_name: str, target_exchange: str, coins: lis
     async with aiohttp.ClientSession(timeout=timeout) as session:
         
         # ══════════════════════════════════════════════════════════
-        # 1. ADIM: Tüm bakiyeleri PARALEL kontrol et (hızlı)
+        # 1. ADIM: Bakiyeleri BATCH halinde kontrol et (rate limit koruması)
         # ══════════════════════════════════════════════════════════
-        q.put(f"🔍 {len(coins)} coin için bakiye kontrol ediliyor...")
+        q.put(f"🔍 {len(coins)} coin için bakiye kontrol ediliyor (batch: {BALANCE_BATCH_SIZE})...")
         
         async def check_balance(coin: dict):
             symbol = coin["symbol"].upper()
             try:
                 bal = await adapter.get_balance(session, symbol)
+                if bal > 0:
+                    q.put(f"  💰 {symbol}: {bal}")
                 return (coin, bal)
             except Exception as e:
                 q.put(f"{symbol}: ⚠️ Bakiye hatası: {e}")
                 return (coin, Decimal("0"))
         
-        results = await asyncio.gather(*[check_balance(c) for c in coins])
+        # Batch halinde bakiye kontrolü
+        results = []
+        total_batches = (len(coins) - 1) // BALANCE_BATCH_SIZE + 1
+        
+        for i in range(0, len(coins), BALANCE_BATCH_SIZE):
+            batch = coins[i:i + BALANCE_BATCH_SIZE]
+            batch_num = i // BALANCE_BATCH_SIZE + 1
+            
+            # Her 5 batch'te bir ilerleme göster
+            if batch_num % 5 == 1 or batch_num == total_batches:
+                q.put(f"  📊 Batch {batch_num}/{total_batches} kontrol ediliyor...")
+            
+            batch_results = await asyncio.gather(*[check_balance(c) for c in batch])
+            results.extend(batch_results)
+            
+            # Son batch değilse bekle
+            if i + BALANCE_BATCH_SIZE < len(coins):
+                await asyncio.sleep(BALANCE_BATCH_DELAY)
         
         # ══════════════════════════════════════════════════════════
         # 2. ADIM: Sadece bakiyesi > 0 olanları filtrele
         # ══════════════════════════════════════════════════════════
         coins_with_balance = [(coin, bal) for coin, bal in results if bal > 0]
         
-        q.put(f"💰 {len(coins_with_balance)} coin'de bakiye bulundu")
+        q.put(f"✅ Bakiye taraması tamamlandı: {len(coins_with_balance)} coin'de bakiye var")
         
         if not coins_with_balance:
             q.put("⚪ Çekilecek bakiye yok")
             return
-        
-        # Bakiyesi olan coinleri listele
-        for coin, bal in coins_with_balance:
-            q.put(f"  → {coin['symbol'].upper()}: {bal}")
         
         # ══════════════════════════════════════════════════════════
         # 3. ADIM: Sadece bakiyesi olanlar için SIRALI çekim yap
