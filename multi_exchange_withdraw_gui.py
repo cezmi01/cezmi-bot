@@ -839,6 +839,28 @@ class BybitAdapter(BaseExchange):
                 # Chain seçimi
                 selected_chain = None
                 
+                # Yaygın chain alias'ları (config'deki isim -> Bybit'teki isim)
+                CHAIN_ALIASES = {
+                    "AVAXC": ["CAVAX", "AVAXC", "C-CHAIN"],
+                    "AVAX": ["CAVAX", "XAVAX"],
+                    "BSC": ["BSC", "BEP20", "BNB"],
+                    "ETH": ["ETH", "ERC20"],
+                    "ERC20": ["ETH", "ERC20"],
+                    "TRC20": ["TRC20", "TRX", "TRON"],
+                    "TRX": ["TRC20", "TRX"],
+                    "MATIC": ["MATIC", "POLYGON"],
+                    "POLYGON": ["MATIC", "POLYGON"],
+                    "ARB": ["ARB", "ARBONE", "ARBITRUM"],
+                    "ARBITRUM": ["ARB", "ARBONE", "ARBITRUM"],
+                    "OP": ["OP", "OPTIMISM"],
+                    "OPTIMISM": ["OP", "OPTIMISM"],
+                    "SOL": ["SOL", "SOLANA"],
+                    "SEIEVM": ["SEIEVM", "SEI-EVM"],
+                }
+                
+                # want_network için olası eşleşmeler
+                possible_matches = CHAIN_ALIASES.get(want_network, [want_network])
+                
                 for ch in chains:
                     chain_name = ch.get("chain", "")
                     chain_type = ch.get("chainType", "")
@@ -853,19 +875,31 @@ class BybitAdapter(BaseExchange):
                     if not can_withdraw:
                         continue
                     
+                    chain_name_upper = chain_name.upper()
+                    chain_type_upper = chain_type.upper()
+                    
                     # Eğer network belirtilmişse, eşleşeni bul
                     if want_network:
-                        chain_name_upper = chain_name.upper()
-                        chain_type_upper = chain_type.upper()
+                        # Alias listesinde eşleşme ara
+                        for alias in possible_matches:
+                            alias_upper = alias.upper()
+                            # Tam eşleşme
+                            if chain_name_upper == alias_upper or chain_type_upper == alias_upper:
+                                selected_chain = ch
+                                break
+                            # Kısmi eşleşme (chain_name içinde alias var mı)
+                            if alias_upper in chain_name_upper or alias_upper in chain_type_upper:
+                                selected_chain = ch
+                                break
                         
-                        # Tam eşleşme
-                        if chain_name_upper == want_network or chain_type_upper == want_network:
+                        if selected_chain:
+                            break
+                        
+                        # Ters kontrol: chain_name veya chain_type, want_network içinde var mı
+                        if chain_name_upper in want_network or chain_type_upper in want_network:
                             selected_chain = ch
                             break
-                        # Kısmi eşleşme
-                        if want_network in chain_name_upper or want_network in chain_type_upper:
-                            selected_chain = ch
-                            break
+                        
                         # Chain formatı: COIN-NETWORK şeklinde olabilir (örn: ETH-ERC20)
                         if "-" in chain_name:
                             chain_suffix = chain_name.split("-")[-1].upper()
