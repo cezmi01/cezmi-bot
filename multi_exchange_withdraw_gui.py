@@ -627,9 +627,13 @@ class BybitAdapter(BaseExchange):
                 for ch in chains:
                     chain_name = ch.get("chain", "")
                     chain_type = ch.get("chainType", "")
-                    # withdrawEnable boolean veya string olabilir
+                    # withdrawEnable boolean veya string olabilir, yoksa True kabul et
                     withdraw_enable = ch.get("withdrawEnable")
-                    can_withdraw = withdraw_enable is True or str(withdraw_enable).lower() in ("true", "1")
+                    # Eğer withdrawEnable alanı yoksa, varsayılan olarak True kabul et
+                    if withdraw_enable is None:
+                        can_withdraw = True
+                    else:
+                        can_withdraw = withdraw_enable is True or str(withdraw_enable).lower() in ("true", "1")
                     
                     if not can_withdraw:
                         continue
