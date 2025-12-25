@@ -470,16 +470,32 @@ class BybitAdapter(BaseExchange):
                         return unified_available
                     break
 
-        # 2. FUND hesabını kontrol et (iki farklı endpoint dene)
-        # Endpoint 1: query-account-coins-balance
+        # 2. FUND hesabını kontrol et - Birden fazla yöntem dene
+        
+        # Yöntem 2a: query-account-coins-balance (FUND)
         funding_data, funding_status = await self._get(
             session,
             "/v5/asset/transfer/query-account-coins-balance",
             {"accountType": "FUND", "coin": sym},
         )
         
+        write_log({
+            "exchange": self.name,
+            "symbol": sym,
+            "note": "FUND_API_RAW",
+            "status": funding_status,
+            "retCode": funding_data.get("retCode") if isinstance(funding_data, dict) else None,
+            "result": funding_data.get("result") if isinstance(funding_data, dict) else None,
+        })
+        
         if funding_status == 200 and funding_data.get("retCode") == 0:
-            coins = funding_data.get("result", {}).get("balance", [])
+            result = funding_data.get("result", {})
+            coins = result.get("balance", [])
+            
+            # Eğer balance boş ama result'ta coin bilgisi varsa
+            if not coins and "coin" in result:
+                coins = [result]
+            
             for coin in coins:
                 if coin.get("coin", "").upper() == sym:
                     try:
@@ -497,25 +513,73 @@ class BybitAdapter(BaseExchange):
                         "walletBalance": str(wallet_balance),
                     })
                     
+                    # walletBalance varsa ama transferBalance yoksa, walletBalance kullan
                     if fund_available > 0:
                         self._last_balance_account = "FUND"
                         return fund_available
+                    elif wallet_balance > 0:
+                        self._last_balance_account = "FUND"
+                        return wallet_balance
                     break
         
-        # 3. Alternatif endpoint: /v5/asset/coin/query-info (tüm coinler)
-        all_coins_data, all_coins_status = await self._get(
+        # Yöntem 2b: Tüm FUND bakiyelerini çek (coin parametresi olmadan)
+        all_fund_data, all_fund_status = await self._get(
+            session,
+            "/v5/asset/transfer/query-account-coins-balance",
+            {"accountType": "FUND"},
+        )
+        
+        if all_fund_status == 200 and all_fund_data.get("retCode") == 0:
+            coins = all_fund_data.get("result", {}).get("balance", [])
+            for coin in coins:
+                if coin.get("coin", "").upper() == sym:
+                    try:
+                        fund_available = Decimal(str(coin.get("transferBalance", "0")))
+                        wallet_balance = Decimal(str(coin.get("walletBalance", "0")))
+                    except Exception:
+                        fund_available = Decimal("0")
+                        wallet_balance = Decimal("0")
+                    
+                    write_log({
+                        "exchange": self.name,
+                        "symbol": sym,
+                        "note": "FUND_ALL_COINS_CHECK",
+                        "transferBalance": str(fund_available),
+                        "walletBalance": str(wallet_balance),
+                    })
+                    
+                    if fund_available > 0:
+                        self._last_balance_account = "FUND"
+                        return fund_available
+                    elif wallet_balance > 0:
+                        self._last_balance_account = "FUND"
+                        return wallet_balance
+                    break
+        
+        # Yöntem 2c: query-asset-info endpoint
+        asset_info_data, asset_info_status = await self._get(
             session,
             "/v5/asset/transfer/query-asset-info",
             {"accountType": "FUND", "coin": sym},
         )
         
-        if all_coins_status == 200 and all_coins_data.get("retCode") == 0:
-            spot_info = all_coins_data.get("result", {}).get("spot", {})
+        if asset_info_status == 200 and asset_info_data.get("retCode") == 0:
+            result = asset_info_data.get("result", {})
+            # Farklı yapıları kontrol et
+            spot_info = result.get("spot", {})
             assets = spot_info.get("assets", [])
+            
+            # Eğer spot yapısı yoksa, result'ın kendisini kontrol et
+            if not assets:
+                assets = result.get("assets", [])
+            if not assets and isinstance(result.get("list"), list):
+                assets = result.get("list", [])
+            
             for asset in assets:
-                if asset.get("coin", "").upper() == sym:
+                asset_coin = asset.get("coin", asset.get("tokenId", "")).upper()
+                if asset_coin == sym:
                     try:
-                        free = Decimal(str(asset.get("free", "0")))
+                        free = Decimal(str(asset.get("free", asset.get("availableAmount", "0"))))
                     except Exception:
                         free = Decimal("0")
                     
@@ -531,7 +595,7 @@ class BybitAdapter(BaseExchange):
                         return free
                     break
         
-        # 4. Diğer hesap türlerini kontrol et (SPOT, CONTRACT)
+        # 3. Diğer hesap türlerini kontrol et (SPOT, CONTRACT)
         for account_type in ["SPOT", "CONTRACT"]:
             other_data, other_status = await self._get(
                 session,
@@ -545,19 +609,25 @@ class BybitAdapter(BaseExchange):
                     if coin.get("coin", "").upper() == sym:
                         try:
                             available = Decimal(str(coin.get("transferBalance", "0")))
+                            wallet = Decimal(str(coin.get("walletBalance", "0")))
                         except Exception:
                             available = Decimal("0")
+                            wallet = Decimal("0")
                         
                         write_log({
                             "exchange": self.name,
                             "symbol": sym,
                             "note": f"{account_type}_BALANCE",
                             "transferBalance": str(available),
+                            "walletBalance": str(wallet),
                         })
                         
                         if available > 0:
                             self._last_balance_account = account_type
                             return available
+                        elif wallet > 0:
+                            self._last_balance_account = account_type
+                            return wallet
                         break
 
         self._last_balance_account = None
