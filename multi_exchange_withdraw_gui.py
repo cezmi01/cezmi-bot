@@ -517,9 +517,18 @@ class BybitAdapter(BaseExchange):
                     if not sym:
                         continue
                     try:
-                        wallet_bal = Decimal(str(coin.get("walletBalance", "0")))
-                        equity = Decimal(str(coin.get("equity", "0")))
-                        available_to_withdraw = Decimal(str(coin.get("availableToWithdraw", "0")))
+                        # Boş string veya None kontrolü
+                        def safe_decimal(val):
+                            if val is None or val == "" or val == "null":
+                                return Decimal("0")
+                            try:
+                                return Decimal(str(val))
+                            except:
+                                return Decimal("0")
+                        
+                        wallet_bal = safe_decimal(coin.get("walletBalance"))
+                        equity = safe_decimal(coin.get("equity"))
+                        available_to_withdraw = safe_decimal(coin.get("availableToWithdraw"))
                         
                         # Herhangi biri > 0 ise ekle
                         best_balance = max(wallet_bal, equity, available_to_withdraw)
@@ -543,6 +552,7 @@ class BybitAdapter(BaseExchange):
                             "symbol": sym,
                             "note": "UNIFIED_PARSE_ERROR",
                             "error": str(e),
+                            "raw_data": str(coin)[:200],
                         })
         
         write_log({
