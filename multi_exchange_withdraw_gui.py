@@ -483,7 +483,7 @@ class BybitAdapter(BaseExchange):
             "coins": {k: str(v["balance"]) for k, v in all_balances.items()},
         })
         
-        # 2. UNIFIED hesabındaki transfer edilebilir bakiyeler (eski endpoint - yedek)
+        # 2. UNIFIED hesabındaki transfer edilebilir bakiyeler (yedek endpoint)
         if len(all_balances) == 0:
             unified_data, unified_status = await self._get(
                 session,
