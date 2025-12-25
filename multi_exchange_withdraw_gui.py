@@ -919,55 +919,61 @@ class BybitAdapter(BaseExchange):
                     "available_chains": [c.get("chain") for c in chains],
                 })
                 
+                # Withdraw edilebilir chain'leri filtrele
+                valid_chains = []
                 for ch in chains:
-                    chain_name = ch.get("chain", "")
-                    chain_type = ch.get("chainType", "")
-                    # withdrawEnable boolean veya string olabilir, yoksa True kabul et
                     withdraw_enable = ch.get("withdrawEnable")
-                    # Eğer withdrawEnable alanı yoksa, varsayılan olarak True kabul et
                     if withdraw_enable is None:
                         can_withdraw = True
                     else:
                         can_withdraw = withdraw_enable is True or str(withdraw_enable).lower() in ("true", "1")
-                    
-                    if not can_withdraw:
-                        continue
-                    
-                    chain_name_upper = chain_name.upper()
-                    chain_type_upper = chain_type.upper()
-                    
-                    # Eğer network belirtilmişse, eşleşeni bul
-                    if want_network:
-                        # Alias listesinde eşleşme ara
+                    if can_withdraw:
+                        valid_chains.append(ch)
+                
+                if want_network:
+                    # 1. ÖNCE: Tam eşleşme ara (en yüksek öncelik)
+                    for ch in valid_chains:
+                        chain_name_upper = ch.get("chain", "").upper()
+                        chain_type_upper = ch.get("chainType", "").upper()
+                        
+                        # want_network ile tam eşleşme
+                        if chain_name_upper == want_network or chain_type_upper == want_network:
+                            selected_chain = ch
+                            break
+                        
+                        # Alias listesinde tam eşleşme
                         for alias in possible_matches:
                             alias_upper = alias.upper()
-                            # Tam eşleşme
                             if chain_name_upper == alias_upper or chain_type_upper == alias_upper:
                                 selected_chain = ch
                                 break
-                            # Kısmi eşleşme (chain_name içinde alias var mı)
-                            if alias_upper in chain_name_upper or alias_upper in chain_type_upper:
-                                selected_chain = ch
-                                break
-                        
                         if selected_chain:
                             break
-                        
-                        # Ters kontrol: chain_name veya chain_type, want_network içinde var mı
-                        if chain_name_upper in want_network or chain_type_upper in want_network:
-                            selected_chain = ch
-                            break
-                        
-                        # Chain formatı: COIN-NETWORK şeklinde olabilir (örn: ETH-ERC20)
-                        if "-" in chain_name:
-                            chain_suffix = chain_name.split("-")[-1].upper()
-                            if chain_suffix == want_network or want_network in chain_suffix:
-                                selected_chain = ch
+                    
+                    # 2. SONRA: Tam eşleşme bulunamadıysa kısmi eşleşme dene
+                    if not selected_chain:
+                        for ch in valid_chains:
+                            chain_name_upper = ch.get("chain", "").upper()
+                            chain_type_upper = ch.get("chainType", "").upper()
+                            
+                            for alias in possible_matches:
+                                alias_upper = alias.upper()
+                                if alias_upper in chain_name_upper or alias_upper in chain_type_upper:
+                                    selected_chain = ch
+                                    break
+                            if selected_chain:
                                 break
-                    else:
-                        # Network belirtilmemişse ilk withdraw edilebilir chain'i al
-                        if selected_chain is None:
-                            selected_chain = ch
+                            
+                            # Chain formatı: COIN-NETWORK
+                            if "-" in ch.get("chain", ""):
+                                chain_suffix = ch.get("chain", "").split("-")[-1].upper()
+                                if chain_suffix == want_network or want_network in chain_suffix:
+                                    selected_chain = ch
+                                    break
+                else:
+                    # Network belirtilmemişse ilk withdraw edilebilir chain'i al
+                    if valid_chains:
+                        selected_chain = valid_chains[0]
                 
                 if selected_chain:
                     chain = selected_chain.get("chain", "")
