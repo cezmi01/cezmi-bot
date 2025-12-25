@@ -91,6 +91,49 @@ class BybitAdapter(BaseExchange):
         "BTC": {"chain": "BTC", "fee": "0.0005", "min": "0.001"},
         "ETH": {"chain": "ETH", "fee": "0.005", "min": "0.01"},
     }
+    
+    # Chain alias'ları - config'deki isim -> Bybit'teki olası isimler
+    CHAIN_ALIASES = {
+        "AVAXC": ["CAVAX", "AVAXC", "C-CHAIN", "AVAX-C"],
+        "AVAX": ["CAVAX", "XAVAX"],
+        "BSC": ["BSC", "BEP20", "BNB"],
+        "ETH": ["ETH", "ERC20", "ETHEREUM"],
+        "ERC20": ["ETH", "ERC20"],
+        "TRC20": ["TRC20", "TRX", "TRON"],
+        "TRX": ["TRC20", "TRX"],
+        "MATIC": ["MATIC", "POLYGON", "POL"],
+        "POLYGON": ["MATIC", "POLYGON", "POL"],
+        "ARB": ["ARB", "ARBONE", "ARBITRUM"],
+        "ARBITRUM": ["ARB", "ARBONE", "ARBITRUM"],
+        "OP": ["OP", "OPTIMISM"],
+        "OPTIMISM": ["OP", "OPTIMISM"],
+        "SOL": ["SOL", "SOLANA"],
+        "SEIEVM": ["SEIEVM", "SEI-EVM"],
+        "CHZ2": ["CHILIZ", "CHZ2", "CHILIZ2", "CHZ"],
+        "CHILIZ": ["CHILIZ", "CHZ2", "CHZ"],
+        "FTM": ["FTM", "FANTOM", "OPERA"],
+        "FANTOM": ["FTM", "FANTOM"],
+        "ONE": ["ONE", "HARMONY"],
+        "ATOM": ["ATOM", "COSMOS", "GAIA"],
+        "OSMO": ["OSMO", "OSMOSIS"],
+        "KAVA": ["KAVA", "KAVAEVM"],
+        "CELO": ["CELO"],
+        "NEAR": ["NEAR"],
+        "ALGO": ["ALGO", "ALGORAND"],
+        "XLM": ["XLM", "STELLAR"],
+        "XRP": ["XRP", "RIPPLE"],
+        "ADA": ["ADA", "CARDANO"],
+        "DOT": ["DOT", "POLKADOT"],
+        "LUNA": ["LUNA", "TERRA", "TERRA2"],
+        "INJ": ["INJ", "INJECTIVE"],
+        "SUI": ["SUI"],
+        "APT": ["APT", "APTOS"],
+        "TON": ["TON"],
+        "MANTLE": ["MANTLE", "MNT"],
+        "BASE": ["BASE"],
+        "LINEA": ["LINEA"],
+        "ZKSYNC": ["ZKSYNC", "ZKSYNCERA", "ERA"],
+    }
 
     def __init__(self):
         self.key = os.getenv("BYBIT_KEY", "").strip()
@@ -839,48 +882,17 @@ class BybitAdapter(BaseExchange):
                 # Chain seçimi
                 selected_chain = None
                 
-                # Yaygın chain alias'ları (config'deki isim -> Bybit'teki isim)
-                CHAIN_ALIASES = {
-                    "AVAXC": ["CAVAX", "AVAXC", "C-CHAIN"],
-                    "AVAX": ["CAVAX", "XAVAX"],
-                    "BSC": ["BSC", "BEP20", "BNB"],
-                    "ETH": ["ETH", "ERC20"],
-                    "ERC20": ["ETH", "ERC20"],
-                    "TRC20": ["TRC20", "TRX", "TRON"],
-                    "TRX": ["TRC20", "TRX"],
-                    "MATIC": ["MATIC", "POLYGON"],
-                    "POLYGON": ["MATIC", "POLYGON"],
-                    "ARB": ["ARB", "ARBONE", "ARBITRUM"],
-                    "ARBITRUM": ["ARB", "ARBONE", "ARBITRUM"],
-                    "OP": ["OP", "OPTIMISM"],
-                    "OPTIMISM": ["OP", "OPTIMISM"],
-                    "SOL": ["SOL", "SOLANA"],
-                    "SEIEVM": ["SEIEVM", "SEI-EVM"],
-                    "CHZ2": ["CHILIZ", "CHZ2", "CHILIZ2"],
-                    "CHILIZ": ["CHILIZ", "CHZ2"],
-                    "FTM": ["FTM", "FANTOM", "OPERA"],
-                    "FANTOM": ["FTM", "FANTOM"],
-                    "ONE": ["ONE", "HARMONY"],
-                    "ATOM": ["ATOM", "COSMOS", "GAIA"],
-                    "OSMO": ["OSMO", "OSMOSIS"],
-                    "KAVA": ["KAVA", "KAVAEVM"],
-                    "CELO": ["CELO"],
-                    "NEAR": ["NEAR"],
-                    "ALGO": ["ALGO", "ALGORAND"],
-                    "XLM": ["XLM", "STELLAR"],
-                    "XRP": ["XRP", "RIPPLE"],
-                    "ADA": ["ADA", "CARDANO"],
-                    "DOT": ["DOT", "POLKADOT"],
-                    "LUNA": ["LUNA", "TERRA", "TERRA2"],
-                    "INJ": ["INJ", "INJECTIVE"],
-                    "SUI": ["SUI"],
-                    "APT": ["APT", "APTOS"],
-                    "TON": ["TON"],
-                    "MANTLE": ["MANTLE", "MNT"],
-                }
+                # want_network için olası eşleşmeler (class-level CHAIN_ALIASES kullan)
+                possible_matches = self.CHAIN_ALIASES.get(want_network, [want_network])
                 
-                # want_network için olası eşleşmeler
-                possible_matches = CHAIN_ALIASES.get(want_network, [want_network])
+                write_log({
+                    "exchange": self.name,
+                    "symbol": sym,
+                    "note": "CHAIN_MATCHING_DEBUG",
+                    "want_network": want_network,
+                    "possible_matches": possible_matches,
+                    "available_chains": [c.get("chain") for c in chains],
+                })
                 
                 for ch in chains:
                     chain_name = ch.get("chain", "")
