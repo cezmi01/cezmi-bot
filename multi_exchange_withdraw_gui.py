@@ -440,6 +440,104 @@ class BybitAdapter(BaseExchange):
             if "Wallet" not in perms:
                 raise RuntimeError(f"Wallet permission missing! Available: {list(perms.keys())}")
 
+    async def get_all_balances(self, session) -> dict:
+        """Tüm hesaplardan tüm bakiyeleri tek seferde çek (rate limit'i önler)"""
+        all_balances = {}
+        
+        # 1. UNIFIED hesabındaki tüm bakiyeler
+        unified_data, unified_status = await self._get(
+            session,
+            "/v5/asset/transfer/query-account-coins-balance",
+            {"accountType": "UNIFIED"},
+        )
+        
+        if unified_status == 200 and unified_data.get("retCode") == 0:
+            coins = unified_data.get("result", {}).get("balance", [])
+            for coin in coins:
+                sym = coin.get("coin", "").upper()
+                if not sym:
+                    continue
+                try:
+                    transfer_bal = Decimal(str(coin.get("transferBalance", "0")))
+                    wallet_bal = Decimal(str(coin.get("walletBalance", "0")))
+                    available = transfer_bal if transfer_bal > 0 else wallet_bal
+                    if available > 0:
+                        all_balances[sym] = {"balance": available, "account": "UNIFIED"}
+                        self._last_balance_account = "UNIFIED"
+                except:
+                    pass
+        
+        write_log({
+            "exchange": self.name,
+            "note": "UNIFIED_ALL_BALANCES",
+            "count": len(all_balances),
+            "coins": {k: str(v["balance"]) for k, v in all_balances.items()},
+        })
+        
+        # 2. FUND hesabındaki tüm bakiyeler
+        fund_data, fund_status = await self._get(
+            session,
+            "/v5/asset/transfer/query-account-coins-balance",
+            {"accountType": "FUND"},
+        )
+        
+        fund_coins_found = {}
+        if fund_status == 200 and fund_data.get("retCode") == 0:
+            coins = fund_data.get("result", {}).get("balance", [])
+            for coin in coins:
+                sym = coin.get("coin", "").upper()
+                if not sym:
+                    continue
+                try:
+                    transfer_bal = Decimal(str(coin.get("transferBalance", "0")))
+                    wallet_bal = Decimal(str(coin.get("walletBalance", "0")))
+                    available = transfer_bal if transfer_bal > 0 else wallet_bal
+                    if available > 0:
+                        fund_coins_found[sym] = available
+                        # UNIFIED'da yoksa veya daha düşükse, FUND'dakini kullan
+                        if sym not in all_balances or available > all_balances[sym]["balance"]:
+                            all_balances[sym] = {"balance": available, "account": "FUND"}
+                except:
+                    pass
+        
+        write_log({
+            "exchange": self.name,
+            "note": "FUND_ALL_BALANCES",
+            "count": len(fund_coins_found),
+            "coins": {k: str(v) for k, v in fund_coins_found.items()},
+        })
+        
+        # 3. SPOT hesabındaki tüm bakiyeler (opsiyonel)
+        spot_data, spot_status = await self._get(
+            session,
+            "/v5/asset/transfer/query-account-coins-balance",
+            {"accountType": "SPOT"},
+        )
+        
+        if spot_status == 200 and spot_data.get("retCode") == 0:
+            coins = spot_data.get("result", {}).get("balance", [])
+            for coin in coins:
+                sym = coin.get("coin", "").upper()
+                if not sym:
+                    continue
+                try:
+                    transfer_bal = Decimal(str(coin.get("transferBalance", "0")))
+                    wallet_bal = Decimal(str(coin.get("walletBalance", "0")))
+                    available = transfer_bal if transfer_bal > 0 else wallet_bal
+                    if available > 0 and sym not in all_balances:
+                        all_balances[sym] = {"balance": available, "account": "SPOT"}
+                except:
+                    pass
+        
+        write_log({
+            "exchange": self.name,
+            "note": "ALL_BALANCES_TOTAL",
+            "count": len(all_balances),
+            "coins": list(all_balances.keys()),
+        })
+        
+        return all_balances
+
     async def get_balance(self, session, symbol: str) -> Decimal:
         """Get balance from all account types (UNIFIED, FUND, SPOT, CONTRACT)"""
         sym = symbol.upper()
@@ -1314,39 +1412,71 @@ async def run_withdraw_flow(exchange_name: str, target_exchange: str, coins: lis
     async with aiohttp.ClientSession(timeout=timeout) as session:
         
         # ══════════════════════════════════════════════════════════
-        # 1. ADIM: Bakiyeleri BATCH halinde kontrol et (rate limit koruması)
+        # 1. ADIM: Tüm bakiyeleri TEK SEFERDE çek (rate limit koruması)
         # ══════════════════════════════════════════════════════════
-        q.put(f"🔍 {len(coins)} coin için bakiye kontrol ediliyor (batch: {BALANCE_BATCH_SIZE})...")
+        q.put(f"🔍 Tüm bakiyeler kontrol ediliyor...")
         
-        async def check_balance(coin: dict):
-            symbol = coin["symbol"].upper()
+        # Bybit için özel optimizasyon: tüm bakiyeleri tek seferde çek
+        if hasattr(adapter, 'get_all_balances'):
             try:
-                bal = await adapter.get_balance(session, symbol)
-                if bal > 0:
-                    q.put(f"  💰 {symbol}: {bal}")
-                return (coin, bal)
+                all_balances = await adapter.get_all_balances(session)
+                q.put(f"📊 Toplam {len(all_balances)} coin'de bakiye bulundu")
+                
+                # Config'deki coinlerle eşleştir
+                results = []
+                for coin in coins:
+                    symbol = coin["symbol"].upper()
+                    if symbol in all_balances:
+                        bal = all_balances[symbol]["balance"]
+                        account = all_balances[symbol]["account"]
+                        q.put(f"  💰 {symbol}: {bal} ({account})")
+                        # Adapter'a hangi hesaptan geldiğini bildir
+                        adapter._last_balance_account = account
+                        results.append((coin, bal))
+                    else:
+                        results.append((coin, Decimal("0")))
             except Exception as e:
-                q.put(f"{symbol}: ⚠️ Bakiye hatası: {e}")
-                return (coin, Decimal("0"))
-        
-        # Batch halinde bakiye kontrolü
-        results = []
-        total_batches = (len(coins) - 1) // BALANCE_BATCH_SIZE + 1
-        
-        for i in range(0, len(coins), BALANCE_BATCH_SIZE):
-            batch = coins[i:i + BALANCE_BATCH_SIZE]
-            batch_num = i // BALANCE_BATCH_SIZE + 1
+                q.put(f"⚠️ Toplu bakiye hatası: {e}, tek tek deneniyor...")
+                # Fallback: eski yöntem
+                results = []
+                for coin in coins:
+                    symbol = coin["symbol"].upper()
+                    try:
+                        bal = await adapter.get_balance(session, symbol)
+                        if bal > 0:
+                            q.put(f"  💰 {symbol}: {bal}")
+                        results.append((coin, bal))
+                    except Exception as e2:
+                        results.append((coin, Decimal("0")))
+                    await asyncio.sleep(0.1)
+        else:
+            # Diğer borsalar için eski yöntem (batch)
+            async def check_balance(coin: dict):
+                symbol = coin["symbol"].upper()
+                try:
+                    bal = await adapter.get_balance(session, symbol)
+                    if bal > 0:
+                        q.put(f"  💰 {symbol}: {bal}")
+                    return (coin, bal)
+                except Exception as e:
+                    q.put(f"{symbol}: ⚠️ Bakiye hatası: {e}")
+                    return (coin, Decimal("0"))
             
-            # Her 5 batch'te bir ilerleme göster
-            if batch_num % 5 == 1 or batch_num == total_batches:
-                q.put(f"  📊 Batch {batch_num}/{total_batches} kontrol ediliyor...")
+            results = []
+            total_batches = (len(coins) - 1) // BALANCE_BATCH_SIZE + 1
             
-            batch_results = await asyncio.gather(*[check_balance(c) for c in batch])
-            results.extend(batch_results)
-            
-            # Son batch değilse bekle
-            if i + BALANCE_BATCH_SIZE < len(coins):
-                await asyncio.sleep(BALANCE_BATCH_DELAY)
+            for i in range(0, len(coins), BALANCE_BATCH_SIZE):
+                batch = coins[i:i + BALANCE_BATCH_SIZE]
+                batch_num = i // BALANCE_BATCH_SIZE + 1
+                
+                if batch_num % 5 == 1 or batch_num == total_batches:
+                    q.put(f"  📊 Batch {batch_num}/{total_batches} kontrol ediliyor...")
+                
+                batch_results = await asyncio.gather(*[check_balance(c) for c in batch])
+                results.extend(batch_results)
+                
+                if i + BALANCE_BATCH_SIZE < len(coins):
+                    await asyncio.sleep(BALANCE_BATCH_DELAY)
         
         # ══════════════════════════════════════════════════════════
         # 2. ADIM: Sadece bakiyesi > 0 olanları filtrele
