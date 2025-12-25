@@ -133,7 +133,9 @@ class BybitAdapter(BaseExchange):
         "MANTLE": ["MANTLE", "MNT"],
         "BASE": ["BASE"],
         "LINEA": ["LINEA"],
-        "ZKSYNC": ["ZKSYNC", "ZKSYNCERA", "ERA"],
+        "ZKSYNC": ["ZKV2", "ZKSYNC", "ZKSYNCERA", "ERA"],
+        "ZKSYNCERA": ["ZKV2", "ZKSYNCERA", "ZKSYNC", "ERA"],
+        "ZKV2": ["ZKV2", "ZKSYNCERA"],
         "HEDERA": ["HBAR", "HEDERA"],
         "HBAR": ["HBAR", "HEDERA"],
     }
