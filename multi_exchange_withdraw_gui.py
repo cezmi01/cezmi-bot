@@ -565,38 +565,141 @@ class BybitAdapter(BaseExchange):
         return Decimal("0")
 
     async def withdraw(self, session, symbol, network, address, memo, amount: Decimal):
-        """Withdraw coins"""
+        """Withdraw coins - dynamically fetches chain and fee info from Bybit API"""
         sym = symbol.upper()
-
-        cfg = self.COINS.get(sym, {"chain": None, "fee": "0.001", "min": "0.01"})
-        chain = self._normalize_chain(sym, network or cfg.get("chain"))
-        fee = Decimal(cfg["fee"])
-        min_amount = Decimal(cfg["min"])
-
-        final_amount = amount - fee
-
-        write_log(
-            {
+        
+        # ══════════════════════════════════════════════════════════
+        # 1. Bybit API'den coin bilgilerini çek (chain, fee, min)
+        # ══════════════════════════════════════════════════════════
+        coin_info_data, coin_info_status = await self._get(
+            session,
+            "/v5/asset/coin/query-info",
+            {"coin": sym},
+        )
+        
+        chain = None
+        fee = Decimal("0")
+        min_amount = Decimal("0")
+        
+        want_network = (network or "").strip().upper()
+        
+        if coin_info_status == 200 and coin_info_data.get("retCode") == 0:
+            rows = coin_info_data.get("result", {}).get("rows", [])
+            
+            for row in rows:
+                if row.get("coin", "").upper() != sym:
+                    continue
+                    
+                chains = row.get("chains", [])
+                
+                write_log({
+                    "exchange": self.name,
+                    "symbol": sym,
+                    "note": "BYBIT_CHAINS_AVAILABLE",
+                    "chains": [{"chain": c.get("chain"), "chainType": c.get("chainType")} for c in chains],
+                    "requested_network": want_network,
+                })
+                
+                # Chain seçimi
+                selected_chain = None
+                
+                for ch in chains:
+                    chain_name = ch.get("chain", "")
+                    chain_type = ch.get("chainType", "")
+                    can_withdraw = str(ch.get("withdrawEnable", "")).lower() == "true"
+                    
+                    if not can_withdraw:
+                        continue
+                    
+                    # Eğer network belirtilmişse, eşleşeni bul
+                    if want_network:
+                        # Tam eşleşme
+                        if chain_name.upper() == want_network or chain_type.upper() == want_network:
+                            selected_chain = ch
+                            break
+                        # Chain içinde network adı geçiyor mu
+                        if want_network in chain_name.upper() or want_network in chain_type.upper():
+                            selected_chain = ch
+                            break
+                    else:
+                        # Network belirtilmemişse ilk withdraw edilebilir chain'i al
+                        if selected_chain is None:
+                            selected_chain = ch
+                
+                if selected_chain:
+                    chain = selected_chain.get("chain", "")
+                    try:
+                        fee = Decimal(str(selected_chain.get("withdrawFee", "0")))
+                    except:
+                        fee = Decimal("0")
+                    try:
+                        min_amount = Decimal(str(selected_chain.get("withdrawMin", "0")))
+                    except:
+                        min_amount = Decimal("0")
+                    
+                    write_log({
+                        "exchange": self.name,
+                        "symbol": sym,
+                        "note": "BYBIT_CHAIN_SELECTED",
+                        "chain": chain,
+                        "fee": str(fee),
+                        "min": str(min_amount),
+                    })
+                break
+        
+        # API'den chain bulunamadıysa, config'den veya varsayılan kullan
+        if not chain:
+            cfg = self.COINS.get(sym, {"chain": None, "fee": "0.001", "min": "0.01"})
+            chain = self._normalize_chain(sym, network or cfg.get("chain"))
+            fee = Decimal(cfg["fee"])
+            min_amount = Decimal(cfg["min"])
+            
+            write_log({
                 "exchange": self.name,
                 "symbol": sym,
-                "note": "withdraw_calc",
-                "balance": str(amount),
-                "fee": str(fee),
-                "final_amount": str(final_amount),
+                "note": "BYBIT_CHAIN_FALLBACK",
                 "chain": chain,
-                "threshold": str(min_amount),
-            }
-        )
+                "fee": str(fee),
+                "min": str(min_amount),
+            })
+
+        # ══════════════════════════════════════════════════════════
+        # 2. Çekim miktarını hesapla
+        # ══════════════════════════════════════════════════════════
+        final_amount = (amount - fee).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
+
+        write_log({
+            "exchange": self.name,
+            "symbol": sym,
+            "note": "withdraw_calc",
+            "balance": str(amount),
+            "fee": str(fee),
+            "final_amount": str(final_amount),
+            "chain": chain,
+            "min_amount": str(min_amount),
+        })
 
         if final_amount < min_amount:
             return (
                 {
                     "retCode": -1,
-                    "retMsg": f"Insufficient. Balance: {amount}, Fee: {fee}, Min: {min_amount}",
+                    "retMsg": f"Insufficient. Balance: {amount}, Fee: {fee}, Final: {final_amount}, Min: {min_amount}",
                 },
                 400,
             )
 
+        if final_amount <= 0:
+            return (
+                {
+                    "retCode": -1,
+                    "retMsg": f"Amount after fee is zero or negative. Balance: {amount}, Fee: {fee}",
+                },
+                400,
+            )
+
+        # ══════════════════════════════════════════════════════════
+        # 3. Çekim isteği gönder
+        # ══════════════════════════════════════════════════════════
         body = {
             "coin": sym,
             "chain": chain,
