@@ -133,6 +133,8 @@ class BybitAdapter(BaseExchange):
         "BASE": ["BASE"],
         "LINEA": ["LINEA"],
         "ZKSYNC": ["ZKSYNC", "ZKSYNCERA", "ERA"],
+        "HEDERA": ["HBAR", "HEDERA"],
+        "HBAR": ["HBAR", "HEDERA"],
     }
 
     def __init__(self):
