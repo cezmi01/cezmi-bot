@@ -472,21 +472,46 @@ class BybitAdapter(BaseExchange):
         return result
 
     async def get_all_balances(self, session) -> dict:
-        """Tüm hesaplardan tüm bakiyeleri tek seferde çek (rate limit'i önler)"""
+        """Tüm hesaplardan tüm bakiyeleri tek seferde çek"""
         all_balances = {}
-        coins_to_check = set()
+        coins_with_balance = set()
         
-        # 1. UNIFIED TRADING hesabındaki bakiyeler (wallet-balance endpoint)
+        # ══════════════════════════════════════════════════════════
+        # 1. UNIFIED TRADING - wallet-balance endpoint kullan
+        #    (query-account-coins-balance UNIFIED için coin zorunlu!)
+        # ══════════════════════════════════════════════════════════
         unified_wallet_data, unified_wallet_status = await self._get(
             session,
             "/v5/account/wallet-balance",
             {"accountType": "UNIFIED"},
         )
         
+        write_log({
+            "exchange": self.name,
+            "note": "UNIFIED_WALLET_RAW",
+            "status": unified_wallet_status,
+            "retCode": unified_wallet_data.get("retCode") if isinstance(unified_wallet_data, dict) else None,
+        })
+        
         if unified_wallet_status == 200 and unified_wallet_data.get("retCode") == 0:
             account_list = unified_wallet_data.get("result", {}).get("list", [])
+            
+            write_log({
+                "exchange": self.name,
+                "note": "UNIFIED_WALLET_ACCOUNTS",
+                "account_count": len(account_list),
+            })
+            
             for account in account_list:
                 coins = account.get("coin", [])
+                
+                write_log({
+                    "exchange": self.name,
+                    "note": "UNIFIED_WALLET_COINS_RAW",
+                    "coin_count": len(coins),
+                    "sample": [c.get("coin") for c in coins[:5]] if coins else [],
+                })
+                
                 for coin in coins:
                     sym = coin.get("coin", "").upper()
                     if not sym:
@@ -494,20 +519,42 @@ class BybitAdapter(BaseExchange):
                     try:
                         wallet_bal = Decimal(str(coin.get("walletBalance", "0")))
                         equity = Decimal(str(coin.get("equity", "0")))
+                        available_to_withdraw = Decimal(str(coin.get("availableToWithdraw", "0")))
                         
-                        if wallet_bal > 0 or equity > 0:
-                            coins_to_check.add(sym)
-                    except:
-                        pass
+                        # Herhangi biri > 0 ise ekle
+                        best_balance = max(wallet_bal, equity, available_to_withdraw)
+                        
+                        if best_balance > 0:
+                            coins_with_balance.add(sym)
+                            # Geçici olarak bakiyeyi kaydet (sonra withdrawable ile güncellenecek)
+                            all_balances[sym] = {"balance": best_balance, "account": "UNIFIED"}
+                            
+                            write_log({
+                                "exchange": self.name,
+                                "symbol": sym,
+                                "note": "UNIFIED_COIN_FOUND",
+                                "walletBalance": str(wallet_bal),
+                                "equity": str(equity),
+                                "availableToWithdraw": str(available_to_withdraw),
+                            })
+                    except Exception as e:
+                        write_log({
+                            "exchange": self.name,
+                            "symbol": sym,
+                            "note": "UNIFIED_PARSE_ERROR",
+                            "error": str(e),
+                        })
         
         write_log({
             "exchange": self.name,
-            "note": "UNIFIED_WALLET_COINS",
-            "count": len(coins_to_check),
-            "coins": list(coins_to_check),
+            "note": "UNIFIED_TOTAL_FOUND",
+            "count": len(coins_with_balance),
+            "coins": list(coins_with_balance),
         })
         
-        # 2. FUND hesabındaki bakiyeler
+        # ══════════════════════════════════════════════════════════
+        # 2. FUND hesabı - tüm coinleri tek seferde çekebiliriz
+        # ══════════════════════════════════════════════════════════
         fund_data, fund_status = await self._get(
             session,
             "/v5/asset/transfer/query-account-coins-balance",
@@ -521,59 +568,79 @@ class BybitAdapter(BaseExchange):
                 if not sym:
                     continue
                 try:
+                    transfer_bal = Decimal(str(coin.get("transferBalance", "0")))
                     wallet_bal = Decimal(str(coin.get("walletBalance", "0")))
-                    if wallet_bal > 0:
-                        coins_to_check.add(sym)
+                    available = transfer_bal if transfer_bal > 0 else wallet_bal
+                    
+                    if available > 0:
+                        coins_with_balance.add(sym)
+                        # FUND'daki daha yüksekse güncelle
+                        if sym not in all_balances or available > all_balances[sym]["balance"]:
+                            all_balances[sym] = {"balance": available, "account": "FUND"}
+                        
+                        write_log({
+                            "exchange": self.name,
+                            "symbol": sym,
+                            "note": "FUND_COIN_FOUND",
+                            "transferBalance": str(transfer_bal),
+                            "walletBalance": str(wallet_bal),
+                        })
                 except:
                     pass
         
         write_log({
             "exchange": self.name,
-            "note": "ALL_COINS_TO_CHECK",
-            "count": len(coins_to_check),
-            "coins": list(coins_to_check),
+            "note": "ALL_BALANCES_FOUND",
+            "count": len(all_balances),
+            "coins": {k: f"{v['balance']} ({v['account']})" for k, v in all_balances.items()},
         })
         
-        # 3. Her coin için gerçek çekilebilir miktarı al
-        for sym in coins_to_check:
-            try:
-                withdrawable = await self.get_withdrawable_amount(session, sym)
-                
-                uta_amount = withdrawable.get("UTA", Decimal("0"))
-                fund_amount = withdrawable.get("FUND", Decimal("0"))
-                
-                # En yüksek çekilebilir miktarı al
-                if uta_amount > 0 and uta_amount >= fund_amount:
-                    all_balances[sym] = {"balance": uta_amount, "account": "UTA"}
-                    self._last_balance_account = "UNIFIED"
-                elif fund_amount > 0:
-                    all_balances[sym] = {"balance": fund_amount, "account": "FUND"}
-                    self._last_balance_account = "FUND"
-                
-                write_log({
-                    "exchange": self.name,
-                    "symbol": sym,
-                    "note": "WITHDRAWABLE_AMOUNT",
-                    "UTA": str(uta_amount),
-                    "FUND": str(fund_amount),
-                })
-                
-                # Rate limit koruması
-                await asyncio.sleep(0.1)
-                
-            except Exception as e:
-                write_log({
-                    "exchange": self.name,
-                    "symbol": sym,
-                    "note": "WITHDRAWABLE_ERROR",
-                    "error": str(e),
-                })
+        # ══════════════════════════════════════════════════════════
+        # 3. Her coin için gerçek çekilebilir miktarı al (opsiyonel ama daha doğru)
+        # ══════════════════════════════════════════════════════════
+        if len(all_balances) > 0:
+            for sym in list(all_balances.keys()):
+                try:
+                    withdrawable = await self.get_withdrawable_amount(session, sym)
+                    
+                    uta_amount = withdrawable.get("UTA", Decimal("0"))
+                    fund_amount = withdrawable.get("FUND", Decimal("0"))
+                    
+                    # En yüksek çekilebilir miktarı kullan
+                    if uta_amount > 0 or fund_amount > 0:
+                        if uta_amount >= fund_amount:
+                            all_balances[sym] = {"balance": uta_amount, "account": "UTA"}
+                            self._last_balance_account = "UNIFIED"
+                        else:
+                            all_balances[sym] = {"balance": fund_amount, "account": "FUND"}
+                            self._last_balance_account = "FUND"
+                    else:
+                        # Çekilebilir miktar 0 ise listeden çıkar
+                        del all_balances[sym]
+                    
+                    write_log({
+                        "exchange": self.name,
+                        "symbol": sym,
+                        "note": "WITHDRAWABLE_CHECK",
+                        "UTA": str(uta_amount),
+                        "FUND": str(fund_amount),
+                    })
+                    
+                    await asyncio.sleep(0.05)  # Rate limit koruması
+                    
+                except Exception as e:
+                    write_log({
+                        "exchange": self.name,
+                        "symbol": sym,
+                        "note": "WITHDRAWABLE_ERROR",
+                        "error": str(e),
+                    })
         
         write_log({
             "exchange": self.name,
-            "note": "ALL_WITHDRAWABLE_BALANCES",
+            "note": "FINAL_WITHDRAWABLE_BALANCES",
             "count": len(all_balances),
-            "coins": {k: str(v["balance"]) for k, v in all_balances.items()},
+            "coins": {k: f"{v['balance']} ({v['account']})" for k, v in all_balances.items()},
         })
         
         # 2. FUND hesabındaki tüm bakiyeler
