@@ -1514,7 +1514,10 @@ class OKXAdapter(BaseExchange):
             }
         )
 
-        if funding_available >= total_required:
+        # Küçük farklar için tolerans
+        tolerance = max(total_required * Decimal("0.00001"), Decimal("0.0001"))
+        
+        if funding_available >= (total_required - tolerance):
             return
 
         transfer_amount = (total_required - funding_available)
@@ -1585,6 +1588,9 @@ class OKXAdapter(BaseExchange):
         if not transfer_success:
             raise RuntimeError(f"OKX transfer failed from all accounts: {last_error}")
 
+        # Küçük farklar için tolerans (%0.001 veya 0.0001 coin)
+        tolerance = max(total_required * Decimal("0.00001"), Decimal("0.0001"))
+        
         for attempt in range(self.TRANSFER_SETTLE_ATTEMPTS):
             if attempt > 0:
                 await asyncio.sleep(self.TRANSFER_SETTLE_DELAY)
@@ -1597,9 +1603,11 @@ class OKXAdapter(BaseExchange):
                     "attempt": attempt + 1,
                     "funding_available": str(funding_available),
                     "required": str(total_required),
+                    "tolerance": str(tolerance),
                 }
             )
-            if funding_available >= total_required:
+            # Tolerans ile karşılaştır
+            if funding_available >= (total_required - tolerance):
                 return
 
         raise RuntimeError(
