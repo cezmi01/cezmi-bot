@@ -1192,20 +1192,53 @@ class OKXAdapter(BaseExchange):
                     raise RuntimeError(f"OKX error: {await r.text()}")
 
     async def get_balance(self, session, symbol: str) -> Decimal:
+        """Trading + Funding hesaplarından bakiye al"""
+        sym = symbol.upper()
+        total_bal = Decimal("0")
+        
+        # 1. Trading Account bakiyesi
         ts = self._ts()
         path = "/api/v5/account/balance"
         headers = self._headers(ts, self._sign(ts, "GET", path))
         async with session.get(f"{self.API}{path}", headers=headers) as r:
             data = await r.json(content_type=None)
-            bal = Decimal("0")
             for d in data.get("data", []):
                 for c in d.get("details", []):
-                    if c.get("ccy", "").upper() == symbol.upper():
+                    if c.get("ccy", "").upper() == sym:
                         try:
-                            bal += Decimal(c.get("availBal", "0"))
+                            trading_bal = Decimal(c.get("availBal", "0"))
+                            total_bal += trading_bal
+                            write_log({
+                                "exchange": self.name,
+                                "symbol": sym,
+                                "note": "OKX_TRADING_BALANCE",
+                                "balance": str(trading_bal),
+                            })
                         except Exception:
                             pass
-            return bal
+        
+        # 2. Funding Account bakiyesi
+        ts2 = self._ts()
+        path2 = f"/api/v5/asset/balances?ccy={sym}"
+        headers2 = self._headers(ts2, self._sign(ts2, "GET", path2))
+        async with session.get(f"{self.API}{path2}", headers=headers2) as r2:
+            data2 = await r2.json(content_type=None)
+            if data2.get("code") in ("0", 0):
+                for entry in data2.get("data", []):
+                    if entry.get("ccy", "").upper() == sym:
+                        try:
+                            funding_bal = Decimal(entry.get("availBal", "0"))
+                            total_bal += funding_bal
+                            write_log({
+                                "exchange": self.name,
+                                "symbol": sym,
+                                "note": "OKX_FUNDING_BALANCE",
+                                "balance": str(funding_bal),
+                            })
+                        except Exception:
+                            pass
+        
+        return total_bal
 
     async def withdraw(self, session, symbol, network, address, memo, amount: Decimal):
         ts = self._ts()
