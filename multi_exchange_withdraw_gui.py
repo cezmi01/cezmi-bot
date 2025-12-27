@@ -1266,6 +1266,30 @@ class OKXAdapter(BaseExchange):
         chain_suffix_matches = []
         fallback_match = None
         
+        # OKX chain alias'ları (ETH = ERC20, SOL = Solana, vb.)
+        OKX_CHAIN_ALIASES = {
+            "ETH": ["ERC20", "ETH", "ETHEREUM"],
+            "ERC20": ["ERC20", "ETH"],
+            "SOL": ["SOLANA", "SOL"],
+            "SOLANA": ["SOLANA", "SOL"],
+            "BSC": ["BEP20", "BSC"],
+            "BEP20": ["BEP20", "BSC"],
+            "TRC20": ["TRC20", "TRX", "TRON"],
+            "TRX": ["TRC20", "TRX"],
+            "POLYGON": ["POLYGON", "MATIC"],
+            "MATIC": ["POLYGON", "MATIC"],
+            "ARBITRUM": ["ARBITRUM", "ARB", "ARBONE"],
+            "ARB": ["ARBITRUM", "ARB"],
+            "OPTIMISM": ["OPTIMISM", "OP"],
+            "OP": ["OPTIMISM", "OP"],
+            "AVAXC": ["AVAXC", "AVALANCHEC", "C-CHAIN"],
+            "BASE": ["BASE"],
+            "CHZ2": ["CHILIZ", "CHZ2", "CHZ"],
+        }
+        
+        # want için olası eşleşmeler
+        want_aliases = OKX_CHAIN_ALIASES.get(want, [want])
+        
         for ch in entries:
             can_wd = str(ch.get("canWd")).lower() == "true"
             if not can_wd:
@@ -1307,8 +1331,11 @@ class OKXAdapter(BaseExchange):
                 
                 if "-" in chain_name:
                     chain_suffix = chain_name.split("-")[-1].upper().strip()
-                    if chain_suffix == want or want in chain_suffix or chain_suffix in want:
-                        chain_suffix_matches.append(ch)
+                    # Alias listesiyle eşleştir
+                    for alias in want_aliases:
+                        if chain_suffix == alias or alias in chain_suffix or chain_suffix in alias:
+                            chain_suffix_matches.append(ch)
+                            break
                 
                 if chain_display_name and want_raw.lower() == chain_display_name.lower():
                     if not mainnet_match and not exact_match:
