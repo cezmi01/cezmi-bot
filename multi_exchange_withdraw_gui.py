@@ -1152,7 +1152,8 @@ class OKXAdapter(BaseExchange):
     name = "OKX"
     API = "https://www.okx.com"
     ACCOUNT_FUNDING = "6"
-    ACCOUNT_TRADING = "18"
+    ACCOUNT_TRADING = "18"  # Unified trading
+    ACCOUNT_SPOT = "1"  # Classic spot (eski hesaplar için)
     MIN_DECIMAL_STEP = Decimal("0.00000001")
     TRANSFER_SETTLE_ATTEMPTS = 5
     TRANSFER_SETTLE_DELAY = 1.0
@@ -1522,51 +1523,67 @@ class OKXAdapter(BaseExchange):
 
         transfer_amount = transfer_amount.quantize(self.MIN_DECIMAL_STEP, rounding=ROUND_DOWN)
 
-        transfer_body = {
-            "type": "0",
-            "ccy": ccy,
-            "amt": str(transfer_amount),
-            "from": self.ACCOUNT_TRADING,
-            "to": self.ACCOUNT_FUNDING,
-        }
-
-        ts_transfer = self._ts()
-        path_transfer = "/api/v5/asset/transfer"
-        body_json = json.dumps(transfer_body, separators=(",", ":"))
-        headers_transfer = self._headers(ts_transfer, self._sign(ts_transfer, "POST", path_transfer, body_json))
-
-        write_log(
-            {
-                "exchange": self.name,
-                "symbol": ccy,
-                "note": "OKX_TRANSFER_INIT",
-                "amount": transfer_body["amt"],
-                "from": self.ACCOUNT_TRADING,
+        # Farklı kaynak hesapları dene (Unified Trading, Spot)
+        source_accounts = [
+            (self.ACCOUNT_TRADING, "Unified Trading"),
+            (self.ACCOUNT_SPOT, "Spot"),
+        ]
+        
+        transfer_success = False
+        last_error = None
+        
+        for from_account, account_name in source_accounts:
+            transfer_body = {
+                "type": "0",
+                "ccy": ccy,
+                "amt": str(transfer_amount),
+                "from": from_account,
                 "to": self.ACCOUNT_FUNDING,
             }
-        )
 
-        async with session.post(f"{self.API}{path_transfer}", headers=headers_transfer, data=body_json) as resp:
-            try:
-                transfer_data = await resp.json(content_type=None)
-            except Exception:
-                transfer_data = {"raw": await resp.text()}
+            ts_transfer = self._ts()
+            path_transfer = "/api/v5/asset/transfer"
+            body_json = json.dumps(transfer_body, separators=(",", ":"))
+            headers_transfer = self._headers(ts_transfer, self._sign(ts_transfer, "POST", path_transfer, body_json))
 
             write_log(
                 {
                     "exchange": self.name,
                     "symbol": ccy,
-                    "note": "OKX_TRANSFER_RESPONSE",
-                    "status": resp.status,
-                    "response": transfer_data,
+                    "note": "OKX_TRANSFER_INIT",
+                    "amount": transfer_body["amt"],
+                    "from": from_account,
+                    "from_name": account_name,
+                    "to": self.ACCOUNT_FUNDING,
                 }
             )
 
-            success_codes = {"0", 0, "00000"}
-            if not (resp.status == 200 and transfer_data.get("code") in success_codes):
-                raise RuntimeError(
-                    f"OKX transfer failed: HTTP {resp.status}, code={transfer_data.get('code')}, msg={transfer_data.get('msg')}"
+            async with session.post(f"{self.API}{path_transfer}", headers=headers_transfer, data=body_json) as resp:
+                try:
+                    transfer_data = await resp.json(content_type=None)
+                except Exception:
+                    transfer_data = {"raw": await resp.text()}
+
+                write_log(
+                    {
+                        "exchange": self.name,
+                        "symbol": ccy,
+                        "note": "OKX_TRANSFER_RESPONSE",
+                        "status": resp.status,
+                        "from_account": account_name,
+                        "response": transfer_data,
+                    }
                 )
+
+                success_codes = {"0", 0, "00000"}
+                if resp.status == 200 and transfer_data.get("code") in success_codes:
+                    transfer_success = True
+                    break
+                else:
+                    last_error = f"HTTP {resp.status}, code={transfer_data.get('code')}, msg={transfer_data.get('msg')}"
+        
+        if not transfer_success:
+            raise RuntimeError(f"OKX transfer failed from all accounts: {last_error}")
 
         for attempt in range(self.TRANSFER_SETTLE_ATTEMPTS):
             if attempt > 0:
