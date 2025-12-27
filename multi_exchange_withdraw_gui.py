@@ -2001,7 +2001,7 @@ async def run_withdraw_flow(exchange_name: str, target_exchange: str, coins: lis
             "DOGE": Decimal("15"),
             "TRX": Decimal("20"),
             "EOS": Decimal("5"),
-            "NEO": Decimal("0.3"),
+            "NEO": Decimal("1.0"),  # OKX min withdrawal = 1 NEO
             "KAVA": Decimal("8"),
             "FLOW": Decimal("5"),
             "EGLD": Decimal("0.1"),
