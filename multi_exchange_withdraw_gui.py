@@ -1933,6 +1933,7 @@ async def run_withdraw_flow(exchange_name: str, target_exchange: str, coins: lis
             "ETH": Decimal("0.001"),
             "WBTC": Decimal("0.00005"),
             "XAUT": Decimal("0.002"),  # Gold token
+            "PAXG": Decimal("0.002"),  # Gold token ~$2500/coin
             # Yüksek değerli ($100-1000)
             "AAVE": Decimal("0.02"),
             "DASH": Decimal("0.15"),  # ~$25-30 per coin
