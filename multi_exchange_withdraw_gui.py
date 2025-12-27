@@ -1926,6 +1926,7 @@ async def run_withdraw_flow(exchange_name: str, target_exchange: str, coins: lis
             "XAUT": Decimal("0.002"),  # Gold token
             # Yüksek değerli ($100-1000)
             "AAVE": Decimal("0.02"),
+            "DASH": Decimal("0.15"),  # ~$25-30 per coin
             "MKR": Decimal("0.002"),
             "COMP": Decimal("0.02"),
             "YFI": Decimal("0.0005"),
