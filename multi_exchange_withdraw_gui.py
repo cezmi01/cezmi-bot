@@ -19,6 +19,7 @@ import logging
 import threading
 import hashlib
 import uuid
+import socket
 from decimal import Decimal, ROUND_DOWN
 from pathlib import Path
 from queue import Queue, Empty
@@ -463,7 +464,8 @@ class BybitAdapter(BaseExchange):
     async def preflight(self):
         """Connection & permission check"""
         timeout = aiohttp.ClientTimeout(total=20)
-        async with aiohttp.ClientSession(timeout=timeout) as s:
+        connector = aiohttp.TCPConnector(family=socket.AF_INET)  # Force IPv4
+        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as s:
             await self._sync_time(s)
 
             data, status = await self._get(s, "/v5/user/query-api")
@@ -1119,7 +1121,8 @@ class BinanceAdapter(BaseExchange):
 
     async def preflight(self):
         timeout = aiohttp.ClientTimeout(total=20)
-        async with aiohttp.ClientSession(timeout=timeout) as s:
+        connector = aiohttp.TCPConnector(family=socket.AF_INET)  # Force IPv4
+        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as s:
             data, st = await self._req(s, "GET", "/api/v3/account")
             if st != 200:
                 raise RuntimeError(f"Binance error: {data}")
@@ -1179,7 +1182,8 @@ class OKXAdapter(BaseExchange):
 
     async def preflight(self):
         timeout = aiohttp.ClientTimeout(total=20)
-        async with aiohttp.ClientSession(timeout=timeout) as s:
+        connector = aiohttp.TCPConnector(family=socket.AF_INET)  # Force IPv4
+        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as s:
             ts = self._ts()
             path = "/api/v5/account/balance"
             headers = self._headers(ts, self._sign(ts, "GET", path))
@@ -1556,7 +1560,8 @@ async def run_withdraw_flow(exchange_name: str, target_exchange: str, coins: lis
             return
 
     timeout = aiohttp.ClientTimeout(total=60)
-    async with aiohttp.ClientSession(timeout=timeout) as session:
+    connector = aiohttp.TCPConnector(family=socket.AF_INET)  # Force IPv4
+    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         
         # ══════════════════════════════════════════════════════════
         # 1. ADIM: Tüm bakiyeleri TEK SEFERDE çek (rate limit koruması)
