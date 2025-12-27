@@ -1401,13 +1401,20 @@ class OKXAdapter(BaseExchange):
             "CHZ2": ["CHILIZ", "CHZ2", "CHZ"],
             "ZKSYNCERA": ["ZKSYNC ERA", "ZKSYNC", "ZKV2", "ZKERA"],
             "HEDERA": ["HBAR", "HEDERA"],
+            "ETC": ["ERC20", "ETHEREUM CLASSIC", "ETC"],  # EVM address = use ERC20
         }
         
-        # EVM adresi ise C-Chain tercih et
+        # EVM adresi ise uygun chain'i tercih et
         is_evm_address = address.startswith("0x")
-        if symbol.upper() == "AVAX" and is_evm_address:
-            want = "AVAXC"
-            want_aliases = OKX_CHAIN_ALIASES.get("AVAXC", ["C-CHAIN"])
+        if is_evm_address:
+            sym_upper = symbol.upper()
+            if sym_upper == "AVAX":
+                want = "AVAXC"
+                want_aliases = OKX_CHAIN_ALIASES.get("AVAXC", ["C-CHAIN"])
+            elif sym_upper == "ETC":
+                # ETC için ERC20 varsa onu kullan (EVM whitelist uyumluluğu)
+                want = "ERC20"
+                want_aliases = ["ERC20", "ETHEREUM"]
         
         # want için olası eşleşmeler
         want_aliases = OKX_CHAIN_ALIASES.get(want, [want])
