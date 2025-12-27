@@ -1195,7 +1195,8 @@ class OKXAdapter(BaseExchange):
     async def get_balance(self, session, symbol: str) -> Decimal:
         """Trading + Funding hesaplarından bakiye al"""
         sym = symbol.upper()
-        total_bal = Decimal("0")
+        trading_bal = Decimal("0")
+        funding_bal = Decimal("0")
         
         # 1. Trading Account bakiyesi
         ts = self._ts()
@@ -1208,36 +1209,49 @@ class OKXAdapter(BaseExchange):
                     if c.get("ccy", "").upper() == sym:
                         try:
                             trading_bal = Decimal(c.get("availBal", "0"))
-                            total_bal += trading_bal
-                            write_log({
-                                "exchange": self.name,
-                                "symbol": sym,
-                                "note": "OKX_TRADING_BALANCE",
-                                "balance": str(trading_bal),
-                            })
                         except Exception:
                             pass
         
-        # 2. Funding Account bakiyesi
+        # 2. Funding Account bakiyesi - TÜM bakiyeleri çek
         ts2 = self._ts()
-        path2 = f"/api/v5/asset/balances?ccy={sym}"
+        path2 = "/api/v5/asset/balances"  # Tüm coinleri çek
         headers2 = self._headers(ts2, self._sign(ts2, "GET", path2))
         async with session.get(f"{self.API}{path2}", headers=headers2) as r2:
             data2 = await r2.json(content_type=None)
+            write_log({
+                "exchange": self.name,
+                "symbol": sym,
+                "note": "OKX_FUNDING_RAW_RESPONSE",
+                "code": data2.get("code"),
+                "data_count": len(data2.get("data", [])),
+            })
             if data2.get("code") in ("0", 0):
                 for entry in data2.get("data", []):
                     if entry.get("ccy", "").upper() == sym:
                         try:
                             funding_bal = Decimal(entry.get("availBal", "0"))
-                            total_bal += funding_bal
                             write_log({
                                 "exchange": self.name,
                                 "symbol": sym,
-                                "note": "OKX_FUNDING_BALANCE",
-                                "balance": str(funding_bal),
+                                "note": "OKX_FUNDING_COIN_FOUND",
+                                "availBal": entry.get("availBal"),
+                                "bal": entry.get("bal"),
+                                "frozenBal": entry.get("frozenBal"),
                             })
                         except Exception:
                             pass
+        
+        total_bal = trading_bal + funding_bal
+        
+        if total_bal > 0:
+            write_log({
+                "exchange": self.name,
+                "symbol": sym,
+                "note": "OKX_BALANCE_FOUND",
+                "trading": str(trading_bal),
+                "funding": str(funding_bal),
+                "total": str(total_bal),
+            })
         
         return total_bal
 
