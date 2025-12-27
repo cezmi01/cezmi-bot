@@ -1096,6 +1096,34 @@ class BinanceAdapter(BaseExchange):
     name = "BINANCE"
     API = "https://api.binance.com"
 
+    # Chain alias'ları - config'deki isim -> Binance'teki isim
+    CHAIN_ALIASES = {
+        "ETH": "ETH",
+        "ERC20": "ETH",
+        "BSC": "BSC",
+        "BEP20": "BSC",
+        "TRC20": "TRX",
+        "TRX": "TRX",
+        "SOL": "SOL",
+        "SOLANA": "SOL",
+        "AVAXC": "AVAXC",
+        "AVAX": "AVAXC",
+        "MATIC": "MATIC",
+        "POLYGON": "MATIC",
+        "ARB": "ARBITRUM",
+        "ARBITRUM": "ARBITRUM",
+        "OP": "OPTIMISM",
+        "OPTIMISM": "OPTIMISM",
+        "BASE": "BASE",
+        "CHZ2": "CHZ",
+        "CHILIZ": "CHZ",
+        "ZKSYNCERA": "ZKSYNC",
+        "HEDERA": "HBAR",
+        "HBAR": "HBAR",
+        "NEO": "NEO3",
+        "NEO3": "NEO3",
+    }
+
     def __init__(self):
         self.key = os.getenv("BINANCE_KEY", "")
         self.secret = os.getenv("BINANCE_SECRET", "")
@@ -1127,6 +1155,41 @@ class BinanceAdapter(BaseExchange):
             if st != 200:
                 raise RuntimeError(f"Binance error: {data}")
 
+    async def get_all_balances(self, session) -> dict:
+        """Tüm bakiyeleri tek seferde çek - HIZLI VERSİYON"""
+        all_balances = {}
+        
+        # Spot hesap bakiyeleri
+        data, st = await self._req(session, "GET", "/api/v3/account")
+        if st != 200:
+            write_log({
+                "exchange": self.name,
+                "note": "BINANCE_BALANCE_ERROR",
+                "status": st,
+                "data": data,
+            })
+            return all_balances
+        
+        for b in data.get("balances", []):
+            sym = b.get("asset", "").upper()
+            if not sym:
+                continue
+            try:
+                free = Decimal(b.get("free", "0"))
+                if free > 0:
+                    all_balances[sym] = {"balance": free, "account": "SPOT"}
+            except:
+                pass
+        
+        write_log({
+            "exchange": self.name,
+            "note": "BINANCE_ALL_BALANCES",
+            "count": len(all_balances),
+            "coins": {k: f"{v['balance']} ({v['account']})" for k, v in all_balances.items()},
+        })
+        
+        return all_balances
+
     async def get_balance(self, session, symbol: str) -> Decimal:
         data, st = await self._req(session, "GET", "/api/v3/account")
         if st != 200:
@@ -1137,12 +1200,37 @@ class BinanceAdapter(BaseExchange):
         return Decimal("0")
 
     async def withdraw(self, session, symbol, network, address, memo, amount: Decimal):
+        # Network alias'ını çözümle
+        want_network = (network or "").upper().strip()
+        actual_network = self.CHAIN_ALIASES.get(want_network, want_network)
+        
+        write_log({
+            "exchange": self.name,
+            "symbol": symbol.upper(),
+            "note": "BINANCE_WITHDRAW_PREP",
+            "requested_network": want_network,
+            "actual_network": actual_network,
+            "amount": str(amount),
+            "address": address,
+        })
+        
         params = {"coin": symbol.upper(), "address": address, "amount": str(amount)}
-        if network:
-            params["network"] = network
+        if actual_network:
+            params["network"] = actual_network
         if memo not in (None, "", "null", "None"):
             params["addressTag"] = str(memo)
-        return await self._req(session, "POST", "/sapi/v1/capital/withdraw/apply", params)
+        
+        data, st = await self._req(session, "POST", "/sapi/v1/capital/withdraw/apply", params)
+        
+        write_log({
+            "exchange": self.name,
+            "symbol": symbol.upper(),
+            "note": "BINANCE_WITHDRAW_RESPONSE",
+            "status": st,
+            "response": data,
+        })
+        
+        return data, st
 
 
 # ═══════════════════════════════════════════════════════════════
