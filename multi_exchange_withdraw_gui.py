@@ -1452,10 +1452,17 @@ class OKXAdapter(BaseExchange):
                         )
                 
                 if "-" in chain_name:
-                    chain_suffix = chain_name.split("-")[-1].upper().strip()
+                    chain_suffix = chain_name.split("-", 1)[-1].upper().strip()
+                    chain_full_upper = chain_name.upper()
                     # Alias listesiyle eşleştir
                     for alias in want_aliases:
-                        if chain_suffix == alias or alias in chain_suffix or chain_suffix in alias:
+                        alias_upper = alias.upper()
+                        # C-CHAIN özel kontrolü
+                        if alias_upper in ["C-CHAIN", "C CHAIN", "AVALANCHE C", "AVALANCHEC"]:
+                            if "C-CHAIN" in chain_full_upper or "C CHAIN" in chain_full_upper:
+                                chain_suffix_matches.append(ch)
+                                break
+                        elif alias_upper in chain_suffix or chain_suffix in alias_upper or alias_upper in chain_full_upper:
                             chain_suffix_matches.append(ch)
                             break
                 
@@ -1468,16 +1475,17 @@ class OKXAdapter(BaseExchange):
                 elif not fallback_match:
                     fallback_match = ch
         
-        if mainnet_match:
-            chain = mainnet_match.get("chain")
-            fee = mainnet_match.get("minFee", "0")
-        elif exact_match:
+        # Öncelik sırası: exact_match > suffix_match > mainnet > fallback
+        # (İstenen chain her zaman mainnet'ten öncelikli!)
+        if exact_match:
             chain = exact_match.get("chain")
             fee = exact_match.get("minFee", "0")
         elif chain_suffix_matches:
             selected = None
+            # Önce EVM adresi için C-Chain ara
             for ch in chain_suffix_matches:
-                if ch.get("mainNet", False):
+                ch_name = ch.get("chain", "").upper()
+                if "C-CHAIN" in ch_name or "C CHAIN" in ch_name:
                     selected = ch
                     break
             if not selected:
@@ -1493,6 +1501,9 @@ class OKXAdapter(BaseExchange):
                     "requested": want_raw,
                 }
             )
+        elif mainnet_match:
+            chain = mainnet_match.get("chain")
+            fee = mainnet_match.get("minFee", "0")
         elif fallback_match:
             chain = fallback_match.get("chain")
             fee = fallback_match.get("minFee", "0")
