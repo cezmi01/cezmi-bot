@@ -1192,6 +1192,71 @@ class OKXAdapter(BaseExchange):
                 if r.status != 200:
                     raise RuntimeError(f"OKX error: {await r.text()}")
 
+    async def get_all_balances(self, session) -> dict:
+        """Tüm hesaplardan tüm bakiyeleri tek seferde çek - HIZLI VERSİYON"""
+        all_balances = {}
+        
+        # 1. Trading Account - tüm bakiyeler
+        ts1 = self._ts()
+        path1 = "/api/v5/account/balance"
+        headers1 = self._headers(ts1, self._sign(ts1, "GET", path1))
+        
+        # 2. Funding Account - tüm bakiyeler
+        ts2 = self._ts()
+        path2 = "/api/v5/asset/balances"
+        headers2 = self._headers(ts2, self._sign(ts2, "GET", path2))
+        
+        # Paralel çek
+        async def fetch_trading():
+            async with session.get(f"{self.API}{path1}", headers=headers1) as r:
+                return await r.json(content_type=None)
+        
+        async def fetch_funding():
+            async with session.get(f"{self.API}{path2}", headers=headers2) as r:
+                return await r.json(content_type=None)
+        
+        trading_data, funding_data = await asyncio.gather(fetch_trading(), fetch_funding())
+        
+        # Trading bakiyeleri parse et
+        for d in trading_data.get("data", []):
+            for c in d.get("details", []):
+                sym = c.get("ccy", "").upper()
+                if not sym:
+                    continue
+                try:
+                    bal = Decimal(c.get("availBal", "0"))
+                    if bal > 0:
+                        all_balances[sym] = {"balance": bal, "account": "TRADING"}
+                except:
+                    pass
+        
+        # Funding bakiyeleri parse et
+        if funding_data.get("code") in ("0", 0):
+            for entry in funding_data.get("data", []):
+                sym = entry.get("ccy", "").upper()
+                if not sym:
+                    continue
+                try:
+                    bal = Decimal(entry.get("availBal", "0"))
+                    if bal > 0:
+                        if sym not in all_balances:
+                            all_balances[sym] = {"balance": bal, "account": "FUNDING"}
+                        else:
+                            # Her iki hesaptaki toplamı al
+                            all_balances[sym]["balance"] += bal
+                            all_balances[sym]["account"] = "BOTH"
+                except:
+                    pass
+        
+        write_log({
+            "exchange": self.name,
+            "note": "OKX_ALL_BALANCES",
+            "count": len(all_balances),
+            "coins": {k: f"{v['balance']} ({v['account']})" for k, v in all_balances.items()},
+        })
+        
+        return all_balances
+
     async def get_balance(self, session, symbol: str) -> Decimal:
         """Trading + Funding hesaplarından bakiye al"""
         sym = symbol.upper()
