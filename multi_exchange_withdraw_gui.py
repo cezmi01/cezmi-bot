@@ -1395,10 +1395,19 @@ class OKXAdapter(BaseExchange):
             "ARB": ["ARBITRUM", "ARB"],
             "OPTIMISM": ["OPTIMISM", "OP"],
             "OP": ["OPTIMISM", "OP"],
-            "AVAXC": ["AVAXC", "AVALANCHEC", "C-CHAIN"],
+            "AVAXC": ["C-CHAIN", "AVALANCHE C", "AVALANCHEC", "AVAXC"],  # C-Chain for EVM
+            "AVAX": ["C-CHAIN", "AVALANCHE C"],  # Default to C-Chain for 0x addresses
             "BASE": ["BASE"],
             "CHZ2": ["CHILIZ", "CHZ2", "CHZ"],
+            "ZKSYNCERA": ["ZKSYNC ERA", "ZKSYNC", "ZKV2", "ZKERA"],
+            "HEDERA": ["HBAR", "HEDERA"],
         }
+        
+        # EVM adresi ise C-Chain tercih et
+        is_evm_address = address.startswith("0x")
+        if symbol.upper() == "AVAX" and is_evm_address:
+            want = "AVAXC"
+            want_aliases = OKX_CHAIN_ALIASES.get("AVAXC", ["C-CHAIN"])
         
         # want için olası eşleşmeler
         want_aliases = OKX_CHAIN_ALIASES.get(want, [want])
