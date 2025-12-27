@@ -1517,7 +1517,52 @@ class OKXAdapter(BaseExchange):
         if withdraw_amount <= 0:
             return {"error": "amount_not_enough_after_fee"}, 400
 
-        await self._ensure_funding_liquidity(session, symbol, available_amount)
+        # Funding'e transfer et (gerekirse)
+        try:
+            await self._ensure_funding_liquidity(session, symbol, available_amount)
+        except RuntimeError as e:
+            write_log({
+                "exchange": self.name,
+                "symbol": symbol.upper(),
+                "note": "OKX_TRANSFER_WARNING",
+                "error": str(e),
+            })
+            # Transfer başarısız olsa bile Funding'deki ile devam et
+
+        # Funding'deki GERÇEK bakiyeyi al ve ona göre çek
+        ts_check = self._ts()
+        path_check = f"/api/v5/asset/balances?ccy={symbol.upper()}"
+        h_check = self._headers(ts_check, self._sign(ts_check, "GET", path_check))
+        async with session.get(f"{self.API}{path_check}", headers=h_check) as resp:
+            data_check = await resp.json(content_type=None)
+        
+        actual_funding = Decimal("0")
+        if data_check.get("code") in ("0", 0):
+            for entry in data_check.get("data", []):
+                if entry.get("ccy", "").upper() == symbol.upper():
+                    try:
+                        actual_funding = Decimal(str(entry.get("availBal", "0")))
+                    except:
+                        pass
+                    break
+        
+        # Gerçek çekim miktarını hesapla
+        actual_withdraw = (actual_funding - fee_decimal).quantize(self.MIN_DECIMAL_STEP, rounding=ROUND_DOWN)
+        
+        write_log({
+            "exchange": self.name,
+            "symbol": symbol.upper(),
+            "note": "OKX_ACTUAL_FUNDING",
+            "actual_funding": str(actual_funding),
+            "actual_withdraw": str(actual_withdraw),
+            "original_withdraw": str(withdraw_amount),
+        })
+        
+        if actual_withdraw <= 0:
+            return {"error": "funding_balance_not_enough_after_fee", "funding": str(actual_funding), "fee": str(fee_decimal)}, 400
+        
+        # Gerçek miktarı kullan
+        withdraw_amount = actual_withdraw
 
         okx_chain = chain
         if "-" not in chain:
@@ -1581,6 +1626,26 @@ class OKXAdapter(BaseExchange):
                         break
             return available
 
+        async def get_trading_available() -> Decimal:
+            """Trading hesabındaki gerçek available bakiyeyi al"""
+            path = "/api/v5/account/balance"
+            ts = self._ts()
+            headers = self._headers(ts, self._sign(ts, "GET", path))
+            async with session.get(f"{self.API}{path}", headers=headers) as resp:
+                try:
+                    data = await resp.json(content_type=None)
+                except Exception:
+                    return Decimal("0")
+            
+            for d in data.get("data", []):
+                for c in d.get("details", []):
+                    if c.get("ccy", "").upper() == ccy:
+                        try:
+                            return Decimal(str(c.get("availBal", "0")))
+                        except Exception:
+                            return Decimal("0")
+            return Decimal("0")
+
         funding_available = await get_funding_available()
 
         write_log(
@@ -1599,8 +1664,35 @@ class OKXAdapter(BaseExchange):
         if funding_available >= (total_required - tolerance):
             return
 
-        transfer_amount = (total_required - funding_available)
-        if transfer_amount <= 0:
+        # Transfer gerekiyor - önce Trading'de ne var kontrol et
+        trading_available = await get_trading_available()
+        
+        write_log(
+            {
+                "exchange": self.name,
+                "symbol": ccy,
+                "note": "OKX_TRADING_AVAILABLE",
+                "trading_available": str(trading_available),
+                "funding_available": str(funding_available),
+                "required": str(total_required),
+            }
+        )
+        
+        # Gereken miktar = required - funding'deki
+        needed_from_trading = (total_required - funding_available)
+        
+        # Trading'de yeterli yoksa, mevcut olanı transfer et
+        transfer_amount = min(needed_from_trading, trading_available)
+        
+        if transfer_amount <= Decimal("0.00001"):
+            # Transfer gerekmiyor veya Trading'de bakiye yok
+            # Funding'deki ile devam et
+            write_log({
+                "exchange": self.name,
+                "symbol": ccy,
+                "note": "OKX_NO_TRANSFER_NEEDED",
+                "reason": "trading_empty_or_funding_enough",
+            })
             return
 
         transfer_amount = transfer_amount.quantize(self.MIN_DECIMAL_STEP, rounding=ROUND_DOWN)
@@ -1801,15 +1893,38 @@ async def run_withdraw_flow(exchange_name: str, target_exchange: str, coins: lis
         
         q.put(f"📊 {len(coins_with_balance_raw)} coin'de bakiye bulundu")
         
-        # Toz bakiyeleri filtrele (çok küçük miktarlar)
-        # Basit bir eşik: 0.001'den küçük bakiyeleri atla (çoğu coin için toz)
-        MIN_DUST_THRESHOLD = Decimal("0.0001")
+        # ══════════════════════════════════════════════════════════
+        # TOZ FİLTRESİ - Çekilemeyecek küçük bakiyeleri atla
+        # ══════════════════════════════════════════════════════════
+        # Dinamik eşikler: coin türüne göre minimum değerler
+        DUST_THRESHOLDS = {
+            # Yüksek değerli coinler - düşük eşik
+            "BTC": Decimal("0.0001"),
+            "ETH": Decimal("0.001"),
+            "SOL": Decimal("0.01"),
+            "BNB": Decimal("0.01"),
+            # Orta değerli coinler
+            "AVAX": Decimal("0.1"),
+            "DOT": Decimal("0.5"),
+            "LINK": Decimal("0.5"),
+            "UNI": Decimal("0.5"),
+            # Düşük değerli coinler - yüksek eşik
+            "SHIB": Decimal("100000"),
+            "BONK": Decimal("50000"),
+            "PEPE": Decimal("100000"),
+            "FLOKI": Decimal("10000"),
+        }
+        DEFAULT_DUST_THRESHOLD = Decimal("1.0")  # Varsayılan: 1 coin'den az = toz
+        
         coins_with_balance = []
         dust_count = 0
         
         for coin, bal in coins_with_balance_raw:
-            # Çok küçük bakiyeleri atla (genelde çekilemez)
-            if bal < MIN_DUST_THRESHOLD:
+            symbol = coin["symbol"].upper()
+            threshold = DUST_THRESHOLDS.get(symbol, DEFAULT_DUST_THRESHOLD)
+            
+            # Eşiğin altındaki bakiyeleri atla
+            if bal < threshold:
                 dust_count += 1
                 continue
             coins_with_balance.append((coin, bal))
