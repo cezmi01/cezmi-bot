@@ -1402,6 +1402,8 @@ class OKXAdapter(BaseExchange):
             "ZKSYNCERA": ["ZKSYNC ERA", "ZKSYNC", "ZKV2", "ZKERA"],
             "HEDERA": ["HBAR", "HEDERA"],
             "ETC": ["ERC20", "ETHEREUM CLASSIC", "ETC"],  # EVM address = use ERC20
+            "NEO": ["N3", "NEO", "NEO3"],  # NEO N3 network
+            "NEO3": ["N3", "NEO", "NEO3"],
         }
         
         # EVM adresi ise uygun chain'i tercih et
