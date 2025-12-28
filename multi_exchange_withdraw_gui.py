@@ -1102,26 +1102,42 @@ class BinanceAdapter(BaseExchange):
         "ERC20": "ETH",
         "BSC": "BSC",
         "BEP20": "BSC",
+        "BNB": "BSC",
         "TRC20": "TRX",
         "TRX": "TRX",
+        "TRON": "TRX",
         "SOL": "SOL",
         "SOLANA": "SOL",
         "AVAXC": "AVAXC",
         "AVAX": "AVAXC",
+        "C-CHAIN": "AVAXC",
         "MATIC": "MATIC",
         "POLYGON": "MATIC",
+        "POL": "MATIC",
         "ARB": "ARBITRUM",
         "ARBITRUM": "ARBITRUM",
+        "ARBONE": "ARBITRUM",
         "OP": "OPTIMISM",
         "OPTIMISM": "OPTIMISM",
         "BASE": "BASE",
         "CHZ2": "CHZ",
         "CHILIZ": "CHZ",
         "ZKSYNCERA": "ZKSYNC",
+        "ZKSYNC": "ZKSYNC",
         "HEDERA": "HBAR",
         "HBAR": "HBAR",
         "NEO": "NEO3",
         "NEO3": "NEO3",
+        "DOT": "DOT",
+        "POLKADOT": "DOT",
+        "COSMOS": "ATOM",
+        "CELESTIA": "TIA",
+        "LINEA": "LINEA",
+        "SCROLL": "SCROLL",
+        "ZETA": "ZETA",
+        "MANTLE": "MANTLE",
+        "CELO": "CELO",
+        "FLOW": "FLOW",
     }
 
     def __init__(self):
@@ -1185,10 +1201,21 @@ class BinanceAdapter(BaseExchange):
             "exchange": self.name,
             "note": "BINANCE_ALL_BALANCES",
             "count": len(all_balances),
-            "coins": {k: f"{v['balance']} ({v['account']})" for k, v in all_balances.items()},
+            "coins": list(all_balances.keys()),
         })
         
         return all_balances
+
+    async def get_coin_info(self, session, symbol: str) -> dict:
+        """Coin için çekim bilgilerini al (fee, min, network status)"""
+        data, st = await self._req(session, "GET", "/sapi/v1/capital/config/getall")
+        if st != 200:
+            return {}
+        
+        for coin in data:
+            if coin.get("coin", "").upper() == symbol.upper():
+                return coin
+        return {}
 
     async def get_balance(self, session, symbol: str) -> Decimal:
         data, st = await self._req(session, "GET", "/api/v3/account")
@@ -1202,59 +1229,98 @@ class BinanceAdapter(BaseExchange):
     async def withdraw(self, session, symbol, network, address, memo, amount: Decimal):
         sym = symbol.upper()
         
+        # Önce coin bilgisini al (fee, min, network durumu)
+        coin_info = await self.get_coin_info(session, sym)
+        
         # Network alias'ını çözümle
         want_network = (network or "").upper().strip()
         actual_network = self.CHAIN_ALIASES.get(want_network, want_network)
         
-        # Bazı coinler için network = coin adı olmalı
-        COIN_NATIVE_NETWORKS = {
-            "DOT": "DOT",
-            "HBAR": "HBAR",
-            "XRP": "XRP",
-            "XLM": "XLM",
-            "ATOM": "ATOM",
-            "ALGO": "ALGO",
-            "FIL": "FIL",
-            "NEAR": "NEAR",
-            "FLOW": "FLOW",
-            "EGLD": "EGLD",
-            "ICP": "ICP",
-            "ADA": "ADA",
-            "TRX": "TRX",
-            "SOL": "SOL",
-            "KAVA": "KAVA",
-            "TIA": "TIA",
-            "SEI": "SEI",
-            "INJ": "INJ",
-            "SUI": "SUI",
-        }
+        # Coin info'dan doğru network'ü bul
+        selected_network = None
+        withdraw_fee = Decimal("0")
+        withdraw_min = Decimal("0")
+        withdraw_enabled = False
         
-        if sym in COIN_NATIVE_NETWORKS and not actual_network:
-            actual_network = COIN_NATIVE_NETWORKS[sym]
+        if coin_info and coin_info.get("networkList"):
+            networks = coin_info.get("networkList", [])
+            
+            write_log({
+                "exchange": self.name,
+                "symbol": sym,
+                "note": "BINANCE_NETWORKS_AVAILABLE",
+                "networks": [{"network": n.get("network"), "withdrawEnable": n.get("withdrawEnable")} for n in networks],
+                "requested": want_network,
+            })
+            
+            # Önce tam eşleşme ara
+            for net in networks:
+                net_name = net.get("network", "").upper()
+                if net_name == actual_network or net_name == want_network:
+                    if net.get("withdrawEnable"):
+                        selected_network = net.get("network")
+                        withdraw_fee = Decimal(str(net.get("withdrawFee", "0")))
+                        withdraw_min = Decimal(str(net.get("withdrawMin", "0")))
+                        withdraw_enabled = True
+                        break
+            
+            # Eşleşme bulunamadıysa, çekim açık olan ilk uygun network'ü bul
+            if not selected_network:
+                for net in networks:
+                    if net.get("withdrawEnable") and net.get("isDefault"):
+                        selected_network = net.get("network")
+                        withdraw_fee = Decimal(str(net.get("withdrawFee", "0")))
+                        withdraw_min = Decimal(str(net.get("withdrawMin", "0")))
+                        withdraw_enabled = True
+                        break
+            
+            # Hala bulamadıysak, çekim açık olan herhangi birini al
+            if not selected_network:
+                for net in networks:
+                    if net.get("withdrawEnable"):
+                        selected_network = net.get("network")
+                        withdraw_fee = Decimal(str(net.get("withdrawFee", "0")))
+                        withdraw_min = Decimal(str(net.get("withdrawMin", "0")))
+                        withdraw_enabled = True
+                        break
+        
+        if not selected_network:
+            selected_network = actual_network or want_network
         
         # Tam sayı gerektiren coinler
         INTEGER_COINS = {"JUV", "PSG", "BAR", "ACM", "CITY", "ASR", "ATM", "OG", "SANTOS", "LAZIO", "PORTO", "NAV"}
         
         final_amount = amount
         if sym in INTEGER_COINS:
-            final_amount = Decimal(int(amount))  # Kesirli kısmı at
+            final_amount = Decimal(int(amount))
             if final_amount <= 0:
                 return {"error": f"{sym} requires integer amount, got {amount}"}, 400
+        
+        # Fee ve min kontrolü
+        if withdraw_fee > 0:
+            net_amount = final_amount - withdraw_fee
+            if net_amount <= 0:
+                return {"error": f"Insufficient after fee. Balance: {final_amount}, Fee: {withdraw_fee}"}, 400
+            if net_amount < withdraw_min:
+                return {"error": f"Below minimum. Amount: {net_amount}, Min: {withdraw_min}"}, 400
         
         write_log({
             "exchange": self.name,
             "symbol": sym,
             "note": "BINANCE_WITHDRAW_PREP",
             "requested_network": want_network,
-            "actual_network": actual_network,
+            "selected_network": selected_network,
+            "withdraw_enabled": withdraw_enabled,
+            "fee": str(withdraw_fee),
+            "min": str(withdraw_min),
             "original_amount": str(amount),
             "final_amount": str(final_amount),
             "address": address,
         })
         
         params = {"coin": sym, "address": address, "amount": str(final_amount)}
-        if actual_network:
-            params["network"] = actual_network
+        if selected_network:
+            params["network"] = selected_network
         if memo not in (None, "", "null", "None"):
             params["addressTag"] = str(memo)
         
