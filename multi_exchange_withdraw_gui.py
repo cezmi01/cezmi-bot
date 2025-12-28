@@ -2128,6 +2128,7 @@ async def run_withdraw_flow(exchange_name: str, target_exchange: str, coins: lis
             "PAXG": Decimal("0.002"),  # Gold token ~$2500/coin
             # Yüksek değerli ($100-1000)
             "AAVE": Decimal("0.02"),
+            "QNT": Decimal("0.05"),   # ~$80-100 per coin
             "DASH": Decimal("0.15"),  # ~$25-30 per coin
             "ETC": Decimal("0.2"),   # ~$18-25 per coin
             "MKR": Decimal("0.002"),
