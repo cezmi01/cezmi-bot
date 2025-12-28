@@ -1300,6 +1300,11 @@ class BinanceAdapter(BaseExchange):
             "XLM": "0.0000001",   # 7 decimal
             "HBAR": "0.00000001", # 8 decimal
             "TRX": "0.000001",    # 6 decimal
+            "MASK": "0.01",       # 2 decimal
+            "GALA": "0.01",       # 2 decimal
+            "ENJ": "0.01",        # 2 decimal
+            "MANA": "0.01",       # 2 decimal
+            "SAND": "0.01",       # 2 decimal
         }
         
         final_amount = amount
