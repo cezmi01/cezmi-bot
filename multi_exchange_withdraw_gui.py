@@ -1200,21 +1200,59 @@ class BinanceAdapter(BaseExchange):
         return Decimal("0")
 
     async def withdraw(self, session, symbol, network, address, memo, amount: Decimal):
+        sym = symbol.upper()
+        
         # Network alias'ını çözümle
         want_network = (network or "").upper().strip()
         actual_network = self.CHAIN_ALIASES.get(want_network, want_network)
         
+        # Bazı coinler için network = coin adı olmalı
+        COIN_NATIVE_NETWORKS = {
+            "DOT": "DOT",
+            "HBAR": "HBAR",
+            "XRP": "XRP",
+            "XLM": "XLM",
+            "ATOM": "ATOM",
+            "ALGO": "ALGO",
+            "FIL": "FIL",
+            "NEAR": "NEAR",
+            "FLOW": "FLOW",
+            "EGLD": "EGLD",
+            "ICP": "ICP",
+            "ADA": "ADA",
+            "TRX": "TRX",
+            "SOL": "SOL",
+            "KAVA": "KAVA",
+            "TIA": "TIA",
+            "SEI": "SEI",
+            "INJ": "INJ",
+            "SUI": "SUI",
+        }
+        
+        if sym in COIN_NATIVE_NETWORKS and not actual_network:
+            actual_network = COIN_NATIVE_NETWORKS[sym]
+        
+        # Tam sayı gerektiren coinler
+        INTEGER_COINS = {"JUV", "PSG", "BAR", "ACM", "CITY", "ASR", "ATM", "OG", "SANTOS", "LAZIO", "PORTO", "NAV"}
+        
+        final_amount = amount
+        if sym in INTEGER_COINS:
+            final_amount = Decimal(int(amount))  # Kesirli kısmı at
+            if final_amount <= 0:
+                return {"error": f"{sym} requires integer amount, got {amount}"}, 400
+        
         write_log({
             "exchange": self.name,
-            "symbol": symbol.upper(),
+            "symbol": sym,
             "note": "BINANCE_WITHDRAW_PREP",
             "requested_network": want_network,
             "actual_network": actual_network,
-            "amount": str(amount),
+            "original_amount": str(amount),
+            "final_amount": str(final_amount),
             "address": address,
         })
         
-        params = {"coin": symbol.upper(), "address": address, "amount": str(amount)}
+        params = {"coin": sym, "address": address, "amount": str(final_amount)}
         if actual_network:
             params["network"] = actual_network
         if memo not in (None, "", "null", "None"):
@@ -1224,7 +1262,7 @@ class BinanceAdapter(BaseExchange):
         
         write_log({
             "exchange": self.name,
-            "symbol": symbol.upper(),
+            "symbol": sym,
             "note": "BINANCE_WITHDRAW_RESPONSE",
             "status": st,
             "response": data,
