@@ -1243,6 +1243,9 @@ class BinanceAdapter(BaseExchange):
         withdraw_min = Decimal("0")
         withdraw_enabled = False
         
+        # EVM adresi kontrolü
+        is_evm_address = address.startswith("0x")
+        
         if coin_info and coin_info.get("networkList"):
             networks = coin_info.get("networkList", [])
             
@@ -1252,18 +1255,41 @@ class BinanceAdapter(BaseExchange):
                 "note": "BINANCE_NETWORKS_AVAILABLE",
                 "networks": [{"network": n.get("network"), "withdrawEnable": n.get("withdrawEnable")} for n in networks],
                 "requested": want_network,
+                "is_evm_address": is_evm_address,
             })
             
-            # Önce tam eşleşme ara
-            for net in networks:
-                net_name = net.get("network", "").upper()
-                if net_name == actual_network or net_name == want_network:
-                    if net.get("withdrawEnable"):
-                        selected_network = net.get("network")
-                        withdraw_fee = Decimal(str(net.get("withdrawFee", "0")))
-                        withdraw_min = Decimal(str(net.get("withdrawMin", "0")))
-                        withdraw_enabled = True
-                        break
+            # EVM adresi ise önce EVM network'ü ara
+            if is_evm_address:
+                evm_networks = ["EVM", "ETH", "BSC", "ARBITRUM", "OPTIMISM", "BASE", "MATIC", "AVAXC"]
+                for net in networks:
+                    net_name = net.get("network", "").upper()
+                    # SEI için SEIEVM, KAVA için KAVAEVM gibi
+                    if net_name == f"{sym}EVM" or net_name.endswith("EVM"):
+                        if net.get("withdrawEnable"):
+                            selected_network = net.get("network")
+                            withdraw_fee = Decimal(str(net.get("withdrawFee", "0")))
+                            withdraw_min = Decimal(str(net.get("withdrawMin", "0")))
+                            withdraw_enabled = True
+                            break
+                    # Genel EVM ağları
+                    if net_name in evm_networks and net.get("withdrawEnable"):
+                        if not selected_network:  # Henüz seçilmemişse
+                            selected_network = net.get("network")
+                            withdraw_fee = Decimal(str(net.get("withdrawFee", "0")))
+                            withdraw_min = Decimal(str(net.get("withdrawMin", "0")))
+                            withdraw_enabled = True
+            
+            # EVM bulunamadıysa veya EVM adresi değilse, tam eşleşme ara
+            if not selected_network:
+                for net in networks:
+                    net_name = net.get("network", "").upper()
+                    if net_name == actual_network or net_name == want_network:
+                        if net.get("withdrawEnable"):
+                            selected_network = net.get("network")
+                            withdraw_fee = Decimal(str(net.get("withdrawFee", "0")))
+                            withdraw_min = Decimal(str(net.get("withdrawMin", "0")))
+                            withdraw_enabled = True
+                            break
             
             # Eşleşme bulunamadıysa, çekim açık olan ilk uygun network'ü bul
             if not selected_network:
