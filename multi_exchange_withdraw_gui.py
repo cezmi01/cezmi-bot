@@ -1128,8 +1128,9 @@ class BinanceAdapter(BaseExchange):
         "HBAR": "HBAR",
         "NEO": "NEO3",
         "NEO3": "NEO3",
-        "DOT": "DOT",
-        "POLKADOT": "DOT",
+            "DOT": "STATEMINT",      # Polkadot native = STATEMINT on Binance
+            "POLKADOT": "STATEMINT",
+            "STATEMINT": "STATEMINT",
         "COSMOS": "ATOM",
         "CELESTIA": "TIA",
         "LINEA": "LINEA",
