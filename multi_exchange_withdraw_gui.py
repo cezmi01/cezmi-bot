@@ -1288,7 +1288,7 @@ class BinanceAdapter(BaseExchange):
             selected_network = actual_network or want_network
         
         # Tam sayı gerektiren coinler
-        INTEGER_COINS = {"JUV", "PSG", "BAR", "ACM", "CITY", "ASR", "ATM", "OG", "SANTOS", "LAZIO", "PORTO", "NAV"}
+        INTEGER_COINS = {"JUV", "PSG", "BAR", "ACM", "CITY", "ASR", "ATM", "OG", "SANTOS", "LAZIO", "PORTO", "NAV", "NEO"}
         
         # Özel ondalık hassasiyeti gerektiren coinler
         DECIMAL_PRECISION = {
