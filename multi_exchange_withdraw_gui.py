@@ -1290,11 +1290,26 @@ class BinanceAdapter(BaseExchange):
         # Tam sayı gerektiren coinler
         INTEGER_COINS = {"JUV", "PSG", "BAR", "ACM", "CITY", "ASR", "ATM", "OG", "SANTOS", "LAZIO", "PORTO", "NAV"}
         
+        # Özel ondalık hassasiyeti gerektiren coinler
+        DECIMAL_PRECISION = {
+            "ADA": "0.000001",    # 6 decimal
+            "XRP": "0.000001",    # 6 decimal
+            "DOT": "0.0001",      # 4 decimal
+            "ATOM": "0.000001",   # 6 decimal
+            "ALGO": "0.000001",   # 6 decimal
+            "XLM": "0.0000001",   # 7 decimal
+            "HBAR": "0.00000001", # 8 decimal
+            "TRX": "0.000001",    # 6 decimal
+        }
+        
         final_amount = amount
         if sym in INTEGER_COINS:
             final_amount = Decimal(int(amount))
             if final_amount <= 0:
                 return {"error": f"{sym} requires integer amount, got {amount}"}, 400
+        elif sym in DECIMAL_PRECISION:
+            step = Decimal(DECIMAL_PRECISION[sym])
+            final_amount = amount.quantize(step, rounding=ROUND_DOWN)
         
         # Fee ve min kontrolü
         if withdraw_fee > 0:
