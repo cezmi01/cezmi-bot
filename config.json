@@ -1531,6 +1531,12 @@
       "network": "TON",
       "address": "UQBUd5ECN7eGD6a0ylE8xoS5_N7GZ6ai3LqtRoNapcAW4Y_Z",
       "memo": "482E6BE080FC55D46A79"
+    },
+    "paribu": {
+      "symbol": "TON",
+      "network": "TON",
+      "address": "UQAGfNj8gg1TZjGoVpYuGx6pEhjD9JLFouvcZwgeyoI0DTgn",
+      "memo": "22130574"
     }
   },
   {
