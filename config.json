@@ -2085,6 +2085,12 @@
       "network": "SUI",
       "address": "0xf7c577da9d31d859c23f9fc63b5011b8f11de7b7aa53cba0903374d2e0fedebb",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "SUI",
+      "network": "SUI",
+      "address": "0xdf4cd56fc5259b5d1551e0e935e31f391678aef951673a9af252208eb4fc9419",
+      "memo": null
     }
   },
   {
