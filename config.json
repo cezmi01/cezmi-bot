@@ -1689,6 +1689,12 @@
       "network": "SOL",
       "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "LAYER",
+      "network": "SOL",
+      "address": "HsPVeexfbcf5FWrUGVKz8FPs7onibsA4c5u3Dpnk7Vd8",
+      "memo": null
     }
   },
   {
