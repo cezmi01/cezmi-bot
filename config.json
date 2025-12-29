@@ -1318,6 +1318,36 @@
     }
   },
   {
+    "symbol": "MINA",
+    "network": "MINA",
+    "paribu": {
+      "symbol": "MINA",
+      "network": "MINA",
+      "address": "B62qjAqdrdEFg53NW1r23T25cf22DizwPxiNsBKwP38kWmdDcTsCGF7",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "IOTA",
+    "network": "IOTA",
+    "paribu": {
+      "symbol": "IOTA",
+      "network": "IOTA",
+      "address": "0x0aec56c9a62cff4612096c0f7ea18c819d995685fe012cc5b1ebc57f77ff2d28",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "MON",
+    "network": "MONAD",
+    "paribu": {
+      "symbol": "MON",
+      "network": "MONAD",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
+    }
+  },
+  {
     "symbol": "MIRA",
     "network": "BASE",
     "btcturk": {
