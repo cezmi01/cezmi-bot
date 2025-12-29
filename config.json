@@ -2256,5 +2256,15 @@
       "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
     }
+  },
+  {
+    "symbol": "DYM",
+    "network": "DYM",
+    "paribu": {
+      "symbol": "DYM",
+      "network": "DYM",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
+    }
   }
 ]
