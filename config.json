@@ -2038,5 +2038,15 @@
       "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
     }
+  },
+  {
+    "symbol": "A",
+    "network": "VAULTA",
+    "paribu": {
+      "symbol": "A",
+      "network": "VAULTA",
+      "address": "paribuwallet",
+      "memo": "21695707"
+    }
   }
 ]
