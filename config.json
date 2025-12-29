@@ -1853,6 +1853,12 @@
       "network": "SEI",
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "SEI",
+      "network": "SEI",
+      "address": "sei1mc4etzlhu9fcn4ug8jvxp9upej7jue9uq4ts4y",
+      "memo": "21619150"
     }
   },
   {
@@ -1862,6 +1868,12 @@
       "symbol": "SHIB",
       "network": "ETH",
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    },
+    "paribu": {
+      "symbol": "SHIB",
+      "network": "ETH",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
     }
   },
@@ -1928,6 +1940,12 @@
       "symbol": "S",
       "network": "SONIC",
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    },
+    "paribu": {
+      "symbol": "S",
+      "network": "SONIC",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
     }
   },
@@ -2108,6 +2126,12 @@
       "symbol": "SAND",
       "network": "ETH",
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    },
+    "paribu": {
+      "symbol": "SAND",
+      "network": "ETH",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
     }
   },
