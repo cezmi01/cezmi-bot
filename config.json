@@ -2250,6 +2250,16 @@
     }
   },
   {
+    "symbol": "TSNR",
+    "network": "SOL",
+    "paribu": {
+      "symbol": "TSNR",
+      "network": "SOL",
+      "address": "HsPVeexfbcf5FWrUGVKz8FPs7onibsA4c5u3Dpnk7Vd8",
+      "memo": null
+    }
+  },
+  {
     "symbol": "TON",
     "network": "TON",
     "btcturk": {
