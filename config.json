@@ -1516,12 +1516,28 @@
     }
   },
   {
+    "symbol": "ONT",
+    "network": "ONT",
+    "paribu": {
+      "symbol": "ONT",
+      "network": "ONT",
+      "address": "AUJFcZohD8ofjg2tcvycV7JL8Vk5KUEe6u",
+      "memo": null
+    }
+  },
+  {
     "symbol": "OP",
     "network": "OPTIMISM",
     "btcturk": {
       "symbol": "OP",
       "network": "OPTIMISM",
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    },
+    "paribu": {
+      "symbol": "OP",
+      "network": "OPTIMISM",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
     }
   },
