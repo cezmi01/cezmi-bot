@@ -9,7 +9,7 @@
       "memo": null
     },
     "paribu": {
-      "symbol": "ETH",
+      "symbol": "QNT",
       "network": "ETH",
       "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
@@ -1585,6 +1585,12 @@
       "network": "CHZ2",
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "PSG",
+      "network": "CHZ2",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
     }
   },
   {
@@ -1662,6 +1668,12 @@
       "symbol": "POL",
       "network": "POLYGON",
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    },
+    "paribu": {
+      "symbol": "POL",
+      "network": "ETH",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
     }
   },
