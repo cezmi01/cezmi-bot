@@ -2206,6 +2206,16 @@
     }
   },
   {
+    "symbol": "ZIL",
+    "network": "ZIL",
+    "paribu": {
+      "symbol": "ZIL",
+      "network": "ZIL",
+      "address": "zil1gn5epqp477gs8nt909w4m2s9fdsx6qj7hhzel0",
+      "memo": null
+    }
+  },
+  {
     "symbol": "GRT",
     "network": "ETH",
     "btcturk": {
