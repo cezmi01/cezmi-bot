@@ -2160,5 +2160,15 @@
       "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
     }
+  },
+  {
+    "symbol": "ASTER",
+    "network": "BEP20",
+    "paribu": {
+      "symbol": "ASTER",
+      "network": "BEP20",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
+    }
   }
 ]
