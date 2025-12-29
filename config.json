@@ -315,6 +315,12 @@
       "network": "ADA",
       "address": "addr1q99e2ehhxyq334wzq8754szghr6868t9fqqgycm9qtzrugk3vqz0eq9lr3tp3rjd4e9dx2mrcy5l0dphr45kvq7m9u8s24rrx7",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "ADA",
+      "network": "ADA",
+      "address": "addr1qywqs9xnc0lrgfduac39ehneytlu07yx45ew2z8ysrl880gupq2d8sl7xsjmem3ztn08jghlclugdtfju5ywfq87ww7sh8fp85",
+      "memo": null
     }
   },
   {
