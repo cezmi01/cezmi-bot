@@ -431,6 +431,12 @@
       "network": "DOGE",
       "address": "DFCSb7QLW6vWConLnyrbRddMZQsK9ceQUq",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "DOGE",
+      "network": "DOGE",
+      "address": "DU3VqmNCTwi6HnPN8nPErWCRjeVAr7T7UE",
+      "memo": null
     }
   },
   {
