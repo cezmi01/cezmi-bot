@@ -1690,5 +1690,15 @@
       "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
     }
+  },
+  {
+    "symbol": "BERA",
+    "network": "BERACHAIN",
+    "paribu": {
+      "symbol": "BERA",
+      "network": "BERACHAIN",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
+    }
   }
 ]
