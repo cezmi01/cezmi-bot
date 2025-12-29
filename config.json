@@ -681,6 +681,12 @@
       "network": "INJ",
       "address": "inj1x97lm8gak359hjw7ctsvp82lza5kp9a7p3zrvw",
       "memo": "269099218209C70A8B1A"
+    },
+    "paribu": {
+      "symbol": "INJ",
+      "network": "BEP20",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
     }
   },
   {
