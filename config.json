@@ -2197,6 +2197,12 @@
       "network": "XTZ",
       "address": "tz1PVHq8S6omGWFSkm1CfCvXq6bnYR8VKHUt",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "XTZ",
+      "network": "TEZOS",
+      "address": "tz1a4BCVwCCwjv7ResoU59DUgGj8fnUXogRq",
+      "memo": null
     }
   },
   {
