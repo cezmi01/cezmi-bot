@@ -2140,5 +2140,15 @@
       "address": "0xb645861d82091b36bd76aa42801efe97fe7af866019439d7b65de0d3b72c12a2",
       "memo": null
     }
+  },
+  {
+    "symbol": "ARG",
+    "network": "CHZ2",
+    "paribu": {
+      "symbol": "ARG",
+      "network": "CHZ2",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
+    }
   }
 ]
