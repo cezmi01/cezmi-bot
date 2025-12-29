@@ -2036,6 +2036,16 @@
     }
   },
   {
+    "symbol": "STX",
+    "network": "STACKS",
+    "paribu": {
+      "symbol": "STX",
+      "network": "STACKS",
+      "address": "SP3410AEWC2VA9QGQD1R7V5ZXTR98GK88AHNC3QT3",
+      "memo": "21619247"
+    }
+  },
+  {
     "symbol": "XLM",
     "network": "XLM",
     "btcturk": {
