@@ -835,6 +835,12 @@
       "network": "LTC",
       "address": "ltc1q7epp8y4mahgcdmz5jnazh4ryu05zhkmfcvjc56",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "LTC",
+      "network": "LTC",
+      "address": "LWymBm1ehK7uv3fj1H4F3bdEJuHXykQLfL",
+      "memo": null
     }
   },
   {
