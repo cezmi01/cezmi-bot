@@ -1720,12 +1720,58 @@
     }
   },
   {
+    "symbol": "RACA",
+    "network": "BEP20",
+    "paribu": {
+      "symbol": "RACA",
+      "network": "BEP20",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
+    }
+  },
+  {
     "symbol": "RAD",
     "network": "ETH",
     "btcturk": {
       "symbol": "RAD",
       "network": "ETH",
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    },
+    "paribu": {
+      "symbol": "RAD",
+      "network": "ETH",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "RAY",
+    "network": "SOL",
+    "paribu": {
+      "symbol": "RAY",
+      "network": "SOL",
+      "address": "HsPVeexfbcf5FWrUGVKz8FPs7onibsA4c5u3Dpnk7Vd8",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "RDNT",
+    "network": "ARB",
+    "paribu": {
+      "symbol": "RDNT",
+      "network": "ARB",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "RED",
+    "network": "ETH",
+    "paribu": {
+      "symbol": "RED",
+      "network": "ETH",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
     }
   },
