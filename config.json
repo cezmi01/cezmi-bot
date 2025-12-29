@@ -1245,6 +1245,12 @@
       "network": "XRP",
       "address": "rDZaKrg5SEBRY13WaQbTb1bwr7HCBBrEkK",
       "memo": "2036825357"
+    },
+    "paribu": {
+      "symbol": "XRP",
+      "network": "XRP",
+      "address": "rMQR1Bie88RcS8xT2LL7jYPUME8Luh7AP7",
+      "memo": "21619138"
     }
   },
   {
