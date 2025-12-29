@@ -1584,5 +1584,15 @@
       "address": "f1gzovv7mktkg5szgfieq343y7ww4dtznq4g3qmvi",
       "memo": null
     }
+  },
+  {
+    "symbol": "SYRUP",
+    "network": "ETH",
+    "paribu": {
+      "symbol": "SYRUP",
+      "network": "ETH",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
+    }
   }
 ]
