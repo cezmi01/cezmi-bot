@@ -1710,5 +1710,15 @@
       "address": "5HJeGuzJ45Qtu1t5H1qDVsBpBhn2puH6heuQBFGrJSTMAkhK",
       "memo": null
     }
+  },
+  {
+    "symbol": "RVN",
+    "network": "RVN",
+    "paribu": {
+      "symbol": "RVN",
+      "network": "RVN",
+      "address": "RMDkRMaxdN78vHxCA45MDS8Stxp1oAT8kz",
+      "memo": null
+    }
   }
 ]
