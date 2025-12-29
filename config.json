@@ -787,6 +787,12 @@
       "network": "FLR",
       "address": "0x7dCD90b511a727997a08c685412d9a7162E6BcB8",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "FLR",
+      "network": "FLR",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
     }
   },
   {
