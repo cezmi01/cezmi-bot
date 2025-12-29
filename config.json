@@ -2234,5 +2234,15 @@
       "address": "TPwy6Da9DZtGSJ5ZwMFRPUMpdwGCjE1MPN",
       "memo": null
     }
+  },
+  {
+    "symbol": "COW",
+    "network": "ETH",
+    "paribu": {
+      "symbol": "COW",
+      "network": "ETH",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
+    }
   }
 ]
