@@ -1477,6 +1477,12 @@
       "network": "SOL",
       "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "TRUMP",
+      "network": "SOL",
+      "address": "HsPVeexfbcf5FWrUGVKz8FPs7onibsA4c5u3Dpnk7Vd8",
+      "memo": null
     }
   },
   {
@@ -2315,6 +2321,12 @@
       "network": "ETH",
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "UNI",
+      "network": "ETH",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
     }
   },
   {
@@ -2324,6 +2336,12 @@
       "symbol": "UMA",
       "network": "ETH",
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    },
+    "paribu": {
+      "symbol": "UMA",
+      "network": "ETH",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
     }
   },
