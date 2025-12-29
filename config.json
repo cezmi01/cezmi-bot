@@ -205,6 +205,12 @@
       "network": "AXL",
       "address": "axelar13rf3upgznjvrwdgwje7ts8ja605a06hvewfr4v",
       "memo": "1AAADAAF44A06FA7DFC9"
+    },
+    "paribu": {
+      "symbol": "AXL",
+      "network": "ETH",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
     }
   },
   {
