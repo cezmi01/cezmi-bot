@@ -1818,5 +1818,15 @@
       "address": "dydx1mc4etzlhu9fcn4ug8jvxp9upej7jue9uyq5znj",
       "memo": "21693954"
     }
+  },
+  {
+    "symbol": "ICP",
+    "network": "ICP",
+    "paribu": {
+      "symbol": "ICP",
+      "network": "ICP",
+      "address": "6141d4dd3b9b9d76f5e48bc1b79419eb68783fd5a4c2dd18195041bd118c806e",
+      "memo": null
+    }
   }
 ]
