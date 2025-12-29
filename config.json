@@ -2438,6 +2438,16 @@
     }
   },
   {
+    "symbol": "WAL",
+    "network": "SUI",
+    "paribu": {
+      "symbol": "WAL",
+      "network": "SUI",
+      "address": "0xdf4cd56fc5259b5d1551e0e935e31f391678aef951673a9af252208eb4fc9419",
+      "memo": null
+    }
+  },
+  {
     "symbol": "ZK",
     "network": "ZKSYNCERA",
     "btcturk": {
