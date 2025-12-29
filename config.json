@@ -1858,5 +1858,15 @@
       "address": "6141d4dd3b9b9d76f5e48bc1b79419eb68783fd5a4c2dd18195041bd118c806e",
       "memo": null
     }
+  },
+  {
+    "symbol": "GRASS",
+    "network": "SOL",
+    "paribu": {
+      "symbol": "GRASS",
+      "network": "SOL",
+      "address": "HsPVeexfbcf5FWrUGVKz8FPs7onibsA4c5u3Dpnk7Vd8",
+      "memo": null
+    }
   }
 ]
