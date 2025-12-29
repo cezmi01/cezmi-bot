@@ -1784,5 +1784,15 @@
       "address": "qz9zmzsp7gplad0fz5yfn9a5znfy4ymq9qnpq5l3vs",
       "memo": null
     }
+  },
+  {
+    "symbol": "DYDX",
+    "network": "DYDX",
+    "paribu": {
+      "symbol": "DYDX",
+      "network": "DYDX",
+      "address": "dydx1mc4etzlhu9fcn4ug8jvxp9upej7jue9uyq5znj",
+      "memo": "21693954"
+    }
   }
 ]
