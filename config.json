@@ -1732,5 +1732,15 @@
       "address": "RMDkRMaxdN78vHxCA45MDS8Stxp1oAT8kz",
       "memo": null
     }
+  },
+  {
+    "symbol": "BCH",
+    "network": "BCH",
+    "paribu": {
+      "symbol": "BCH",
+      "network": "BCH",
+      "address": "qz9zmzsp7gplad0fz5yfn9a5znfy4ymq9qnpq5l3vs",
+      "memo": null
+    }
   }
 ]
