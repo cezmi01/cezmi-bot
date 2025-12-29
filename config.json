@@ -1677,6 +1677,12 @@
       "network": "ETH",
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "TURBO",
+      "network": "ETH",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
     }
   },
   {
