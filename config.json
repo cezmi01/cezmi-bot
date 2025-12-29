@@ -999,6 +999,12 @@
       "network": "NEAR",
       "address": "26dd5cdc70906eb6357fbe99084a849088700094923d17c34aff3af31dee68f7",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "NEAR",
+      "network": "NEAR",
+      "address": "70847d2be498e8d0a2a50f9875ff5bf2a033a2065e236d6ef79f6afb126345eb",
+      "memo": null
     }
   },
   {
