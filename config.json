@@ -367,6 +367,12 @@
       "network": "ETH",
       "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "BIO",
+      "network": "SOL",
+      "address": "HsPVeexfbcf5FWrUGVKz8FPs7onibsA4c5u3Dpnk7Vd8",
+      "memo": null
     }
   },
   {
