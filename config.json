@@ -1039,6 +1039,12 @@
       "network": "NEO3",
       "address": "NZseHnUGvUEM3GRqGZnJANpSS4gdrPUVsn",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "NEO",
+      "network": "NEO3",
+      "address": "NibWFCQoMeMMjPacXcxsGRazoFodqNfdQm",
+      "memo": null
     }
   },
   {
