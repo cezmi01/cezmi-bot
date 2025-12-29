@@ -1523,6 +1523,12 @@
       "network": "TRC20",
       "address": "TRpaxLxHBWcoWm4YPsx9nfu8DHmnft6boc",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "TRX",
+      "network": "TRC20",
+      "address": "TPwy6Da9DZtGSJ5ZwMFRPUMpdwGCjE1MPN",
+      "memo": null
     }
   },
   {
