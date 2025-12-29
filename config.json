@@ -1601,6 +1601,12 @@
       "network": "FIL",
       "address": "f1gzovv7mktkg5szgfieq343y7ww4dtznq4g3qmvi",
       "memo": null
+    },
+    "paribu": {
+      "symbol": "FIL",
+      "network": "FIL",
+      "address": "f1hrwyuypnsmob2pkjh2vaxqkgu6nkqjhktnrltfi",
+      "memo": null
     }
   },
   {
