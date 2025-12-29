@@ -2412,12 +2412,28 @@
     }
   },
   {
+    "symbol": "VET",
+    "network": "VET",
+    "paribu": {
+      "symbol": "VET",
+      "network": "VET",
+      "address": "0xc287282cca23ed2eb036e10aa7105989c8ace600",
+      "memo": null
+    }
+  },
+  {
     "symbol": "W",
     "network": "SOL",
     "btcturk": {
       "symbol": "W",
       "network": "SOL",
       "address": "EigLPBZ61yQPvLGrtEy3nhtwJZoVFDeE6TyPYCSGDJdd",
+      "memo": null
+    },
+    "paribu": {
+      "symbol": "W",
+      "network": "SOL",
+      "address": "HsPVeexfbcf5FWrUGVKz8FPs7onibsA4c5u3Dpnk7Vd8",
       "memo": null
     }
   },
