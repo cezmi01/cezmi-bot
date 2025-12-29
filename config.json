@@ -1700,5 +1700,15 @@
       "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
     }
+  },
+  {
+    "symbol": "TAO",
+    "network": "BITTENSOR",
+    "paribu": {
+      "symbol": "TAO",
+      "network": "BITTENSOR",
+      "address": "5HJeGuzJ45Qtu1t5H1qDVsBpBhn2puH6heuQBFGrJSTMAkhK",
+      "memo": null
+    }
   }
 ]
