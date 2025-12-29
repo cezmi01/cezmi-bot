@@ -2054,5 +2054,15 @@
       "address": "paribuwallet",
       "memo": "21695707"
     }
+  },
+  {
+    "symbol": "AEVO",
+    "network": "ETH",
+    "paribu": {
+      "symbol": "AEVO",
+      "network": "ETH",
+      "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
+      "memo": null
+    }
   }
 ]
