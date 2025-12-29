@@ -467,6 +467,12 @@
       "network": "TIA",
       "address": "celestia13rf3upgznjvrwdgwje7ts8ja605a06hvv2wmyq",
       "memo": "AF4F904CC880C73662D7"
+    },
+    "paribu": {
+      "symbol": "TIA",
+      "network": "TIA",
+      "address": "celestia1mc4etzlhu9fcn4ug8jvxp9upej7jue9uuntkfg",
+      "memo": null
     }
   },
   {
