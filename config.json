@@ -2448,6 +2448,16 @@
     }
   },
   {
+    "symbol": "WAVES",
+    "network": "WAVES",
+    "paribu": {
+      "symbol": "WAVES",
+      "network": "WAVES",
+      "address": "3P5RRcQyAJkpVjEv9MWWmSJJy76JRXhwAzE",
+      "memo": null
+    }
+  },
+  {
     "symbol": "ZK",
     "network": "ZKSYNCERA",
     "btcturk": {
