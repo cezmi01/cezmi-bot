@@ -1006,19 +1006,24 @@ class BybitAdapter(BaseExchange):
                         selected_chain = valid_chains[0]
                 
                 if selected_chain:
-                    # Bybit API'den dönen chain veya chainType'ı kullan
+                    # Bybit API'den dönen chain ve chainType'ı al
                     raw_chain = selected_chain.get("chain", "")
                     chain_type = selected_chain.get("chainType", "")
                     
-                    # Önce chain'i dene, 131002 hatası için chainType'ı da logla
-                    chain = raw_chain
+                    # Bybit whitelist formatına uygun chain seç
+                    # ETH/Ethereum için -> ERC20 kullan (whitelist formatı)
+                    if raw_chain.upper() == "ETH" or chain_type.upper() == "ETHEREUM":
+                        chain = "ERC20"
+                    else:
+                        chain = raw_chain
                     
                     write_log({
                         "exchange": self.name,
                         "symbol": sym,
-                        "note": "CHAIN_SELECTED_RAW",
-                        "chain": chain,
+                        "note": "CHAIN_SELECTED",
+                        "raw_chain": raw_chain,
                         "chainType": chain_type,
+                        "final_chain": chain,
                     })
                     
                     try:
