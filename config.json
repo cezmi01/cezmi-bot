@@ -2218,7 +2218,7 @@
     },
     "paribu": {
       "symbol": "XTZ",
-      "network": "TEZOS",
+      "network": "XTZ",
       "address": "tz1a4BCVwCCwjv7ResoU59DUgGj8fnUXogRq",
       "memo": null
     }
@@ -2628,7 +2628,7 @@
     "network": "BERACHAIN",
     "paribu": {
       "symbol": "BERA",
-      "network": "BERACHAIN",
+      "network": "BERA",
       "address": "0x854D00B25BF780553E7633366A6F0d949afB59b9",
       "memo": null
     }
