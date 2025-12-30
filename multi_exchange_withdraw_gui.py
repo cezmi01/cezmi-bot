@@ -274,7 +274,18 @@ class BybitAdapter(BaseExchange):
             {"accountType": "FUND", "coin": sym},
         )
 
-        fund_available = Decimal(str(data.get("result", {}).get("availableToWithdraw", "0"))) if status == 200 else Decimal("0")
+        fund_available = Decimal(str(data.get("result", {}).get("balance", {}).get("walletBalance", "0"))) if status == 200 else Decimal("0")
+        
+        write_log({
+            "exchange": self.name,
+            "symbol": sym,
+            "note": "FUND_BALANCE_CHECK",
+            "status": status,
+            "fund_available": str(fund_available),
+            "required": str(required),
+            "needs_transfer": fund_available < required,
+            "raw_result": data.get("result") if status == 200 else None,
+        })
 
         if fund_available >= required:
             self._last_balance_account = "FUND"
