@@ -1006,29 +1006,8 @@ class BybitAdapter(BaseExchange):
                         selected_chain = valid_chains[0]
                 
                 if selected_chain:
-                    # Bybit API'den dönen chain ve chainType'ı al
-                    raw_chain = selected_chain.get("chain", "")
-                    chain_type = selected_chain.get("chainType", "")
-                    
-                    # Manuel çekimde "Ethereum (ERC20)" formatı kullanılıyor
-                    # Farklı formatları dene
-                    if chain_type and raw_chain:
-                        # Format: "Ethereum (ERC20)" gibi
-                        if chain_type.upper() == "ETHEREUM" and raw_chain.upper() == "ETH":
-                            chain = "ETH"  # API'nin döndürdüğü orijinal değer
-                        else:
-                            chain = raw_chain
-                    else:
-                        chain = raw_chain
-                    
-                    write_log({
-                        "exchange": self.name,
-                        "symbol": sym,
-                        "note": "CHAIN_SELECTED",
-                        "raw_chain": raw_chain,
-                        "chainType": chain_type,
-                        "final_chain": chain,
-                    })
+                    # Bybit API'den dönen chain değerini direkt kullan
+                    chain = selected_chain.get("chain", "")
                     
                     try:
                         fee = Decimal(str(selected_chain.get("withdrawFee", "0")))
