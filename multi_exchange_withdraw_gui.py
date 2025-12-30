@@ -1010,10 +1010,10 @@ class BybitAdapter(BaseExchange):
                     raw_chain = selected_chain.get("chain", "")
                     chain_type = selected_chain.get("chainType", "")
                     
-                    # Bybit whitelist formatına uygun chain seç
-                    # ETH/Ethereum için -> ERC20 kullan (whitelist formatı)
-                    if raw_chain.upper() == "ETH" or chain_type.upper() == "ETHEREUM":
-                        chain = "ERC20"
+                    # Manuel çekimde "Ethereum (ERC20)" formatı kullanılıyor
+                    # API için chainType'ı kullan (Ethereum, Chiliz Chain, vs.)
+                    if chain_type:
+                        chain = chain_type
                     else:
                         chain = raw_chain
                     
