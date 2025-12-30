@@ -340,6 +340,9 @@ class BybitAdapter(BaseExchange):
                 "amount": str(required),
             }
         )
+        
+        # Transfer sonrası Bybit'in işlemesi için kısa bekleme
+        await asyncio.sleep(0.5)
 
     async def _get(self, session, endpoint, params=None):
         """GET request"""
