@@ -1003,18 +1003,15 @@ class BybitAdapter(BaseExchange):
                         selected_chain = valid_chains[0]
                 
                 if selected_chain:
-                    raw_chain = selected_chain.get("chain", "")
-                    
-                    # Bybit API'den dönen chain'i _normalize_chain ile formatla
-                    # Bu fonksiyon "ETH" → "ATH-ERC20" gibi dönüşümler yapar
-                    chain = self._normalize_chain(sym, raw_chain)
+                    # Bybit API'den dönen chain'i OLDUĞU GİBİ kullan
+                    # API "ETH" dönüyorsa "ETH" gönder, "CHILIZ" dönüyorsa "CHILIZ" gönder
+                    chain = selected_chain.get("chain", "")
                     
                     write_log({
                         "exchange": self.name,
                         "symbol": sym,
-                        "note": "CHAIN_NORMALIZED",
-                        "raw_chain": raw_chain,
-                        "normalized_chain": chain,
+                        "note": "CHAIN_SELECTED_RAW",
+                        "chain": chain,
                     })
                     
                     try:
