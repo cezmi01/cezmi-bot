@@ -1011,9 +1011,13 @@ class BybitAdapter(BaseExchange):
                     chain_type = selected_chain.get("chainType", "")
                     
                     # Manuel çekimde "Ethereum (ERC20)" formatı kullanılıyor
-                    # API için chainType'ı kullan (Ethereum, Chiliz Chain, vs.)
-                    if chain_type:
-                        chain = chain_type
+                    # Farklı formatları dene
+                    if chain_type and raw_chain:
+                        # Format: "Ethereum (ERC20)" gibi
+                        if chain_type.upper() == "ETHEREUM" and raw_chain.upper() == "ETH":
+                            chain = "ETH"  # API'nin döndürdüğü orijinal değer
+                        else:
+                            chain = raw_chain
                     else:
                         chain = raw_chain
                     
