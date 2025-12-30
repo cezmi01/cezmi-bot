@@ -2261,6 +2261,12 @@ async def run_withdraw_flow(exchange_name: str, target_exchange: str, coins: lis
             "PUMP": Decimal("2"),
             "WLFI": Decimal("5"),
             "SAHARA": Decimal("5"),
+            # Yeni eklenenler
+            "TAO": Decimal("0.01"),  # ~$220-300 per coin - çok değerli!
+            "TNSR": Decimal("0.5"),  # ~$0.30 per coin
+            "XAI": Decimal("2"),     # ~$0.15 per coin
+            "PENDLE": Decimal("0.5"), # ~$3-4 per coin
+            "STG": Decimal("2"),     # ~$0.30 per coin
         }
         DEFAULT_DUST_THRESHOLD = Decimal("5")  # Varsayılan: 5 coin'den az = toz (güvenli)
         
