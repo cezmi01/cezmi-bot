@@ -980,7 +980,21 @@ class BybitAdapter(BaseExchange):
                         selected_chain = valid_chains[0]
                 
                 if selected_chain:
-                    chain = selected_chain.get("chain", "")
+                    raw_chain = selected_chain.get("chain", "")
+                    
+                    # Bybit bazı coinler için COIN-CHAIN formatı bekliyor
+                    # Eğer chain zaten COIN- ile başlamıyorsa, ekle
+                    if raw_chain and "-" not in raw_chain:
+                        # Chain direkt coin ismi ise (örn: SOL, BTC), olduğu gibi bırak
+                        # Ama ETH, ERC20, BSC gibi network isimleri ise COIN-CHAIN yap
+                        network_names = ["ETH", "ERC20", "BSC", "BEP20", "TRC20", "ARBITRUM", "OPTIMISM", "BASE", "POLYGON", "MATIC", "AVAXC", "LINEA", "ZKSYNC", "MANTLE"]
+                        if raw_chain.upper() in network_names:
+                            chain = f"{sym}-{raw_chain.upper()}"
+                        else:
+                            chain = raw_chain
+                    else:
+                        chain = raw_chain
+                    
                     try:
                         fee = Decimal(str(selected_chain.get("withdrawFee", "0")))
                     except:
@@ -995,6 +1009,7 @@ class BybitAdapter(BaseExchange):
                         "symbol": sym,
                         "note": "BYBIT_CHAIN_SELECTED",
                         "chain": chain,
+                        "raw_chain": raw_chain,
                         "fee": str(fee),
                         "min": str(min_amount),
                     })
