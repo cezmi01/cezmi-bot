@@ -1255,43 +1255,63 @@ class BinanceAdapter(BaseExchange):
                 "note": "BINANCE_NETWORKS_AVAILABLE",
                 "networks": [{"network": n.get("network"), "withdrawEnable": n.get("withdrawEnable")} for n in networks],
                 "requested": want_network,
+                "actual_network": actual_network,
                 "is_evm_address": is_evm_address,
             })
             
-            # EVM adresi ise önce EVM network'ü ara
-            if is_evm_address:
-                evm_networks = ["EVM", "ETH", "BSC", "ARBITRUM", "OPTIMISM", "BASE", "MATIC", "AVAXC"]
+            # 1. ÖNCE config'deki ağı tam eşleşme ile ara (EN ÖNCELİKLİ)
+            for net in networks:
+                net_name = net.get("network", "").upper()
+                if net_name == actual_network or net_name == want_network:
+                    if net.get("withdrawEnable"):
+                        selected_network = net.get("network")
+                        withdraw_fee = Decimal(str(net.get("withdrawFee", "0")))
+                        withdraw_min = Decimal(str(net.get("withdrawMin", "0")))
+                        withdraw_enabled = True
+                        write_log({
+                            "exchange": self.name,
+                            "symbol": sym,
+                            "note": "BINANCE_EXACT_NETWORK_MATCH",
+                            "selected": selected_network,
+                        })
+                        break
+            
+            # 2. Tam eşleşme bulunamadıysa ve EVM adresi ise, EVM ağlarını ara
+            if not selected_network and is_evm_address:
+                # Önce coin-specific EVM ağı ara (SEIEVM, KAVAEVM gibi)
                 for net in networks:
                     net_name = net.get("network", "").upper()
-                    # SEI için SEIEVM, KAVA için KAVAEVM gibi
-                    if net_name == f"{sym}EVM" or net_name.endswith("EVM"):
+                    if net_name == f"{sym}EVM" or (net_name.endswith("EVM") and sym in net_name):
                         if net.get("withdrawEnable"):
                             selected_network = net.get("network")
                             withdraw_fee = Decimal(str(net.get("withdrawFee", "0")))
                             withdraw_min = Decimal(str(net.get("withdrawMin", "0")))
                             withdraw_enabled = True
+                            write_log({
+                                "exchange": self.name,
+                                "symbol": sym,
+                                "note": "BINANCE_COIN_EVM_MATCH",
+                                "selected": selected_network,
+                            })
                             break
-                    # Genel EVM ağları
-                    if net_name in evm_networks and net.get("withdrawEnable"):
-                        if not selected_network:  # Henüz seçilmemişse
+                
+                # Coin-specific EVM bulunamadıysa, config'deki ağ ETH ise ETH'yi seç
+                if not selected_network and actual_network == "ETH":
+                    for net in networks:
+                        if net.get("network", "").upper() == "ETH" and net.get("withdrawEnable"):
                             selected_network = net.get("network")
                             withdraw_fee = Decimal(str(net.get("withdrawFee", "0")))
                             withdraw_min = Decimal(str(net.get("withdrawMin", "0")))
                             withdraw_enabled = True
-            
-            # EVM bulunamadıysa veya EVM adresi değilse, tam eşleşme ara
-            if not selected_network:
-                for net in networks:
-                    net_name = net.get("network", "").upper()
-                    if net_name == actual_network or net_name == want_network:
-                        if net.get("withdrawEnable"):
-                            selected_network = net.get("network")
-                            withdraw_fee = Decimal(str(net.get("withdrawFee", "0")))
-                            withdraw_min = Decimal(str(net.get("withdrawMin", "0")))
-                            withdraw_enabled = True
+                            write_log({
+                                "exchange": self.name,
+                                "symbol": sym,
+                                "note": "BINANCE_ETH_PRIORITY_MATCH",
+                                "selected": selected_network,
+                            })
                             break
             
-            # Eşleşme bulunamadıysa, çekim açık olan ilk uygun network'ü bul
+            # 3. Eşleşme bulunamadıysa, çekim açık olan varsayılan network'ü bul
             if not selected_network:
                 for net in networks:
                     if net.get("withdrawEnable") and net.get("isDefault"):
@@ -1299,9 +1319,15 @@ class BinanceAdapter(BaseExchange):
                         withdraw_fee = Decimal(str(net.get("withdrawFee", "0")))
                         withdraw_min = Decimal(str(net.get("withdrawMin", "0")))
                         withdraw_enabled = True
+                        write_log({
+                            "exchange": self.name,
+                            "symbol": sym,
+                            "note": "BINANCE_DEFAULT_NETWORK_FALLBACK",
+                            "selected": selected_network,
+                        })
                         break
             
-            # Hala bulamadıysak, çekim açık olan herhangi birini al
+            # 4. Hala bulamadıysak, çekim açık olan herhangi birini al (son çare)
             if not selected_network:
                 for net in networks:
                     if net.get("withdrawEnable"):
@@ -1309,6 +1335,12 @@ class BinanceAdapter(BaseExchange):
                         withdraw_fee = Decimal(str(net.get("withdrawFee", "0")))
                         withdraw_min = Decimal(str(net.get("withdrawMin", "0")))
                         withdraw_enabled = True
+                        write_log({
+                            "exchange": self.name,
+                            "symbol": sym,
+                            "note": "BINANCE_ANY_NETWORK_FALLBACK",
+                            "selected": selected_network,
+                        })
                         break
         
         if not selected_network:
