@@ -1094,9 +1094,8 @@ class BybitAdapter(BaseExchange):
         async with lock:
             await self._wait_for_withdraw_slot()
             
-            # Eğer bakiye zaten FUND'da ise transfer yapmaya gerek yok
-            if self._last_balance_account != "FUND":
-                await self._ensure_fund_liquidity(session, sym, total_required)
+            # Her coin için FUND bakiyesini kontrol et ve gerekirse transfer yap
+            await self._ensure_fund_liquidity(session, sym, total_required)
             
             try:
                 return await self._post(session, "/v5/asset/withdraw/create", body)
