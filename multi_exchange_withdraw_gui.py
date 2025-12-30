@@ -1279,8 +1279,8 @@ class BinanceAdapter(BaseExchange):
             # Çekim kapalıysa hata ver
             if not withdraw_enabled:
                 return {"error": f"Withdrawal disabled for {sym} on {selected_network}"}, 400
-        
-        if not selected_network:
+        else:
+            # coin_info yoksa config'deki ağı direkt kullan
             selected_network = actual_network or want_network
         
         # Tam sayı gerektiren coinler
