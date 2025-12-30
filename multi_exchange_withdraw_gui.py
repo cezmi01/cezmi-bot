@@ -993,9 +993,17 @@ class BybitAdapter(BaseExchange):
                 if selected_chain:
                     raw_chain = selected_chain.get("chain", "")
                     
-                    # Bybit API'den dönen chain'i olduğu gibi kullan
-                    # API ne dönerse onu gönder (ETH, ERC20, CHILIZ, SOL vs.)
-                    chain = raw_chain
+                    # Bybit API'den dönen chain'i _normalize_chain ile formatla
+                    # Bu fonksiyon "ETH" → "ATH-ERC20" gibi dönüşümler yapar
+                    chain = self._normalize_chain(sym, raw_chain)
+                    
+                    write_log({
+                        "exchange": self.name,
+                        "symbol": sym,
+                        "note": "CHAIN_NORMALIZED",
+                        "raw_chain": raw_chain,
+                        "normalized_chain": chain,
+                    })
                     
                     try:
                         fee = Decimal(str(selected_chain.get("withdrawFee", "0")))
