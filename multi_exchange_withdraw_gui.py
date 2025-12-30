@@ -155,19 +155,30 @@ class BybitAdapter(BaseExchange):
         if not value:
             return sym
         alias_map = {
+            "eth": f"{sym}-ERC20",
             "erc20": f"{sym}-ERC20",
             "eth-erc20": f"{sym}-ERC20",
             "ethereum": f"{sym}-ERC20",
             "ethereum mainnet": f"{sym}-ERC20",
             "ethereum (erc20)": f"{sym}-ERC20",
             "arbitrum": f"{sym}-ARBITRUM",
+            "arb": f"{sym}-ARBITRUM",
             "arbitrum one": f"{sym}-ARBITRUM",
+            "optimism": f"{sym}-OPTIMISM",
+            "op": f"{sym}-OPTIMISM",
+            "base": f"{sym}-BASE",
             "polygon": f"{sym}-POLYGON",
             "polygon (matic)": f"{sym}-POLYGON",
             "matic": f"{sym}-POLYGON",
             "bsc": f"{sym}-BSC",
             "bnb smart chain": f"{sym}-BSC",
             "bep20": f"{sym}-BSC",
+            "linea": f"{sym}-LINEA",
+            "zksync": f"{sym}-ZKSYNCERA",
+            "zksyncera": f"{sym}-ZKSYNCERA",
+            "mantle": f"{sym}-MANTLE",
+            "avaxc": f"{sym}-AVAXC",
+            "avax": f"{sym}-AVAXC",
         }
         key = value.lower()
         if key in alias_map:
