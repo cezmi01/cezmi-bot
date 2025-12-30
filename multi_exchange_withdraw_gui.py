@@ -1031,7 +1031,6 @@ class BybitAdapter(BaseExchange):
                         "symbol": sym,
                         "note": "BYBIT_CHAIN_SELECTED",
                         "chain": chain,
-                        "raw_chain": raw_chain,
                         "fee": str(fee),
                         "min": str(min_amount),
                     })
