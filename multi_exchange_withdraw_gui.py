@@ -1590,7 +1590,19 @@ class OKXAdapter(BaseExchange):
                     if force_chain:
                         break
 
-        fallback = None
+        # force_chain bulunduysa direkt kullan, diğer mantığı atla
+        if force_chain:
+            chain = force_chain
+            write_log({
+                "exchange": self.name,
+                "symbol": symbol.upper(),
+                "note": "OKX_USING_FORCE_CHAIN",
+                "chain": chain,
+                "requested": want_raw,
+            })
+        else:
+            # force_chain bulunamadıysa fallback mantığına devam et
+            fallback = None
         entries = []
         for item in data1.get("data", []):
             chains_list = item.get("chains")
@@ -1719,9 +1731,12 @@ class OKXAdapter(BaseExchange):
                 elif not fallback_match:
                     fallback_match = ch
         
-        # Öncelik sırası: exact_match > suffix_match > mainnet > fallback
-        # (İstenen chain her zaman mainnet'ten öncelikli!)
-        if exact_match:
+        # Öncelik sırası: force_chain > exact_match > suffix_match > mainnet > fallback
+        # (Config'deki ağ her zaman öncelikli!)
+        if force_chain:
+            # force_chain zaten bulundu, chain değişkeni ayarlandı, atla
+            pass
+        elif exact_match:
             chain = exact_match.get("chain")
             fee = exact_match.get("minFee", "0")
         elif chain_suffix_matches:
