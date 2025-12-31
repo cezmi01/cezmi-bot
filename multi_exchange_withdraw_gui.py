@@ -1608,6 +1608,9 @@ class OKXAdapter(BaseExchange):
             "INJ": ["INJ", "INJECTIVE"],
             "SUI": ["SUI"],
             "TON": ["TON", "TONCOIN"],
+            "BCH": ["BCH", "BITCOIN CASH", "BITCOINCASH"],
+            "RVN": ["RVN", "RAVENCOIN"],
+            "AVAXC": ["AVAXC", "C-CHAIN", "AVALANCHE C-CHAIN", "AVALANCHE C"],
         }
         
         # Tüm chain'leri topla
