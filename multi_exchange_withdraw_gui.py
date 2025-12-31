@@ -1621,14 +1621,20 @@ class OKXAdapter(BaseExchange):
             chain_upper = chain_name.upper()
             chain_suffix = chain_name.split("-", 1)[-1].upper().strip() if "-" in chain_name else chain_upper
             
-            # Config'deki ağ ile eşleşiyor mu?
+            # Config'deki ağ ile eşleşiyor mu? (Sadece suffix kontrolü - sıkı eşleşme)
             matched = False
+            
+            # ERC20 suffix'i varsa ve config'de ERC20/ETH istenmediyse atla
+            if "ERC20" in chain_suffix and want not in ["ERC20", "ETH", "ETHEREUM"]:
+                continue
+            
             if chain_upper == want or chain_suffix == want:
                 matched = True
             else:
                 for alias in want_aliases:
                     alias_upper = alias.upper()
-                    if alias_upper in chain_suffix or chain_suffix in alias_upper or alias_upper in chain_upper:
+                    # Sadece suffix ile karşılaştır (chain_upper ile değil!)
+                    if alias_upper == chain_suffix or alias_upper in chain_suffix or chain_suffix in alias_upper:
                         matched = True
                         break
             
