@@ -1578,7 +1578,7 @@ class OKXAdapter(BaseExchange):
             "OPTIMISM": ["OPTIMISM", "OP"],
             "AVAXC": ["AVAXC", "C-CHAIN", "AVALANCHE C"],
             "BASE": ["BASE"],
-            "CHZ2": ["CHZ2", "CHILIZ CHAIN", "CHILIZ"],
+            "CHZ2": ["CHZ2", "CHILIZ CHAIN", "CHILIZ", "CHZ-CHILIZ CHAIN"],
             "ZKSYNCERA": ["ZKSYNC ERA", "ZKSYNC", "ZKSYNCERA"],
             "POLYGON": ["POLYGON", "MATIC"],
             "TAO": ["TAO", "BITTENSOR"],
