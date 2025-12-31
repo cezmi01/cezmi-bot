@@ -1652,28 +1652,35 @@ class OKXAdapter(BaseExchange):
             chain_upper = chain_name.upper()
             chain_suffix = chain_name.split("-", 1)[-1].upper().strip() if "-" in chain_name else chain_upper
             
-            # Config'deki ağ ile eşleşiyor mu? (Sadece suffix kontrolü - sıkı eşleşme)
+            # Config'deki ağ ile eşleşiyor mu?
             matched = False
             
-            # ERC20 suffix'i varsa ve config'de ERC20/ETH istenmediyse atla
-            if "ERC20" in chain_suffix and want not in ["ERC20", "ETH", "ETHEREUM"]:
+            # Token ağları listesi (bunlar native chain değil)
+            TOKEN_NETWORKS = ["ERC20", "BEP20", "TRC20", "SPL", "POLYGON", "ARBITRUM ONE", "OPTIMISM", "BASE", "AVALANCHE C"]
+            is_token_network = any(tn in chain_suffix for tn in TOKEN_NETWORKS)
+            
+            # Config'de native ağ istendiyse (sembol = ağ), token ağlarını atla
+            if want == symbol.upper() and is_token_network:
                 continue
             
-            # Prefix kontrolü (chain_name "ICP-..." ve want "ICP" ise)
-            chain_prefix = chain_name.split("-", 1)[0].upper().strip() if "-" in chain_name else ""
-            
-            if chain_upper == want or chain_suffix == want or chain_prefix == want:
+            # 1. Tam eşleşme
+            if chain_upper == want or chain_suffix == want:
                 matched = True
-            elif want == symbol.upper() and chain_prefix == symbol.upper():
-                # Native chain: sembol ile aynı prefix (ICP-ICP, ATOM-ATOM, etc.)
-                matched = True
-            else:
+            # 2. Chain prefix ile eşleşme (ICP-ICP, ATOM-Cosmos, etc.)
+            elif "-" in chain_name:
+                chain_prefix = chain_name.split("-", 1)[0].upper().strip()
+                if chain_prefix == want:
+                    matched = True
+            # 3. Alias eşleşmesi
+            if not matched:
                 for alias in want_aliases:
                     alias_upper = alias.upper()
-                    # Suffix ile karşılaştır
                     if alias_upper == chain_suffix or alias_upper in chain_suffix or chain_suffix in alias_upper:
                         matched = True
                         break
+            # 4. Native chain: config ağı = sembol ise, ilk native chain'i al
+            if not matched and want == symbol.upper() and not is_token_network:
+                matched = True
             
             if matched:
                 can_wd = str(ch.get("canWd")).lower() == "true"
