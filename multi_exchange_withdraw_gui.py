@@ -1601,7 +1601,7 @@ class OKXAdapter(BaseExchange):
             "THETA": ["THETA"],
             "ZIL": ["ZIL", "ZILLIQA"],
             "ALGO": ["ALGO", "ALGORAND"],
-            "ICP": ["ICP", "INTERNET COMPUTER"],
+            "ICP": ["ICP", "INTERNET COMPUTER", "IC"],
             "DYDX": ["DYDX"],
             "SEI": ["SEI"],
             "TIA": ["TIA", "CELESTIA"],
@@ -1659,12 +1659,18 @@ class OKXAdapter(BaseExchange):
             if "ERC20" in chain_suffix and want not in ["ERC20", "ETH", "ETHEREUM"]:
                 continue
             
-            if chain_upper == want or chain_suffix == want:
+            # Prefix kontrolü (chain_name "ICP-..." ve want "ICP" ise)
+            chain_prefix = chain_name.split("-", 1)[0].upper().strip() if "-" in chain_name else ""
+            
+            if chain_upper == want or chain_suffix == want or chain_prefix == want:
+                matched = True
+            elif want == symbol.upper() and chain_prefix == symbol.upper():
+                # Native chain: sembol ile aynı prefix (ICP-ICP, ATOM-ATOM, etc.)
                 matched = True
             else:
                 for alias in want_aliases:
                     alias_upper = alias.upper()
-                    # Sadece suffix ile karşılaştır (chain_upper ile değil!)
+                    # Suffix ile karşılaştır
                     if alias_upper == chain_suffix or alias_upper in chain_suffix or chain_suffix in alias_upper:
                         matched = True
                         break
