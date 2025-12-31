@@ -1611,6 +1611,11 @@ class OKXAdapter(BaseExchange):
             "BCH": ["BCH", "BITCOIN CASH", "BITCOINCASH"],
             "RVN": ["RVN", "RAVENCOIN"],
             "AVAXC": ["AVAXC", "C-CHAIN", "AVALANCHE C-CHAIN", "AVALANCHE C"],
+            "FLR": ["FLR", "FLARE"],
+            "GLMR": ["GLMR", "MOONBEAM"],
+            "KAVA": ["KAVA"],
+            "FLOW": ["FLOW"],
+            "KSM": ["KSM", "KUSAMA"],
         }
         
         # Tüm chain'leri topla
