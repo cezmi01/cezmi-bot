@@ -1617,6 +1617,7 @@ class OKXAdapter(BaseExchange):
             "KAVA": ["KAVA"],
             "FLOW": ["FLOW"],
             "KSM": ["KSM", "KUSAMA"],
+            "STX": ["STX", "STACKS"],
         }
         
         # Tüm chain'leri topla
