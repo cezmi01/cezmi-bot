@@ -1566,43 +1566,28 @@ class OKXAdapter(BaseExchange):
         want_raw = (network or "").strip()
         want = want_raw.upper()
         
-        force_chain = None
-        if want_raw:
-            for item in data1.get("data", []):
-                chains_list = item.get("chains", [])
-                if isinstance(chains_list, list):
-                    for ch in chains_list:
-                        chain_name = ch.get("chain", "")
-                        if chain_name.upper() == want or chain_name == want_raw:
-                            if str(ch.get("canWd")).lower() == "true":
-                                force_chain = chain_name
-                                fee = ch.get("minFee", "0")
-                                write_log(
-                                    {
-                                        "exchange": self.name,
-                                        "symbol": symbol.upper(),
-                                        "note": "OKX_FORCE_CHAIN",
-                                        "chain": force_chain,
-                                        "requested": want_raw,
-                                    }
-                                )
-                                break
-                    if force_chain:
-                        break
-
-        # force_chain bulunduysa direkt kullan, diğer mantığı atla
-        if force_chain:
-            chain = force_chain
-            write_log({
-                "exchange": self.name,
-                "symbol": symbol.upper(),
-                "note": "OKX_USING_FORCE_CHAIN",
-                "chain": chain,
-                "requested": want_raw,
-            })
-        else:
-            # force_chain bulunamadıysa fallback mantığına devam et
-            fallback = None
+        # OKX chain alias'ları
+        OKX_CHAIN_ALIASES = {
+            "ETH": ["ERC20", "ETH", "ETHEREUM"],
+            "ERC20": ["ERC20", "ETH"],
+            "SOL": ["SOL", "SOLANA"],
+            "BEP20": ["BEP20", "BSC"],
+            "TRC20": ["TRC20", "TRX", "TRON"],
+            "ARBITRUM": ["ARBITRUM", "ARB"],
+            "ARB": ["ARBITRUM", "ARB"],
+            "OPTIMISM": ["OPTIMISM", "OP"],
+            "AVAXC": ["AVAXC", "C-CHAIN", "AVALANCHE C"],
+            "BASE": ["BASE"],
+            "CHZ2": ["CHZ2", "CHILIZ CHAIN", "CHILIZ"],
+            "ZKSYNCERA": ["ZKSYNC ERA", "ZKSYNC", "ZKSYNCERA"],
+            "POLYGON": ["POLYGON", "MATIC"],
+            "TAO": ["TAO", "BITTENSOR"],
+            "LINEA": ["LINEA"],
+            "MANTA": ["MANTA"],
+            "SONIC": ["SONIC", "S"],
+        }
+        
+        # Tüm chain'leri topla
         entries = []
         for item in data1.get("data", []):
             chains_list = item.get("chains")
@@ -1621,159 +1606,72 @@ class OKXAdapter(BaseExchange):
             }
         )
 
-        mainnet_match = None
-        exact_match = None
-        chain_suffix_matches = []
-        fallback_match = None
-        
-        # OKX chain alias'ları (ETH = ERC20, SOL = Solana, vb.)
-        OKX_CHAIN_ALIASES = {
-            "ETH": ["ERC20", "ETH", "ETHEREUM"],
-            "ERC20": ["ERC20", "ETH"],
-            "SOL": ["SOLANA", "SOL"],
-            "SOLANA": ["SOLANA", "SOL"],
-            "BSC": ["BEP20", "BSC"],
-            "BEP20": ["BEP20", "BSC"],
-            "TRC20": ["TRC20", "TRX", "TRON"],
-            "TRX": ["TRC20", "TRX"],
-            "POLYGON": ["POLYGON", "MATIC"],
-            "MATIC": ["POLYGON", "MATIC"],
-            "ARBITRUM": ["ARBITRUM", "ARB", "ARBONE"],
-            "ARB": ["ARBITRUM", "ARB"],
-            "OPTIMISM": ["OPTIMISM", "OP"],
-            "OP": ["OPTIMISM", "OP"],
-            "AVAXC": ["C-CHAIN", "AVALANCHE C", "AVALANCHEC", "AVAXC"],  # C-Chain for EVM
-            "AVAX": ["C-CHAIN", "AVALANCHE C"],  # Default to C-Chain for 0x addresses
-            "BASE": ["BASE"],
-            "CHZ2": ["CHILIZ", "CHZ2", "CHZ"],
-            "ZKSYNCERA": ["ZKSYNC ERA", "ZKSYNC", "ZKV2", "ZKERA"],
-            "HEDERA": ["HBAR", "HEDERA"],
-            "ETC": ["ERC20", "ETHEREUM CLASSIC", "ETC"],  # EVM address = use ERC20
-            "NEO": ["N3", "NEO", "NEO3"],  # NEO N3 network
-            "NEO3": ["N3", "NEO", "NEO3"],
-        }
-        
-        # EVM adresi ise uygun chain'i tercih et
-        is_evm_address = address.startswith("0x")
-        if is_evm_address:
-            sym_upper = symbol.upper()
-            if sym_upper == "AVAX":
-                want = "AVAXC"
-                want_aliases = OKX_CHAIN_ALIASES.get("AVAXC", ["C-CHAIN"])
-            elif sym_upper == "ETC":
-                # ETC için ERC20 varsa onu kullan (EVM whitelist uyumluluğu)
-                want = "ERC20"
-                want_aliases = ["ERC20", "ETHEREUM"]
-        
-        # want için olası eşleşmeler
+        # Config'deki ağı OKX'te bul (Binance gibi sıkı eşleşme)
         want_aliases = OKX_CHAIN_ALIASES.get(want, [want])
         
+        selected_chain = None
+        chain_found_but_disabled = False
+        disabled_chain_name = None
+        
         for ch in entries:
-            can_wd = str(ch.get("canWd")).lower() == "true"
-            if not can_wd:
-                continue
             chain_name = ch.get("chain", "")
-            chain_display_name = ch.get("name", "")
-            is_mainnet = ch.get("mainNet", False)
             if not chain_name:
                 continue
             
             chain_upper = chain_name.upper()
+            chain_suffix = chain_name.split("-", 1)[-1].upper().strip() if "-" in chain_name else chain_upper
             
-            if want:
-                if is_mainnet:
-                    if not mainnet_match:
-                        mainnet_match = ch
-                        write_log(
-                            {
-                                "exchange": self.name,
-                                "symbol": symbol.upper(),
-                                "note": "OKX_CHAIN_MAINNET_MATCH",
-                                "selected_chain": chain_name,
-                                "requested": want_raw,
-                            }
-                        )
-                
-                if chain_upper == want:
-                    if not mainnet_match:
-                        exact_match = ch
-                        write_log(
-                            {
-                                "exchange": self.name,
-                                "symbol": symbol.upper(),
-                                "note": "OKX_CHAIN_EXACT_MATCH",
-                                "selected_chain": chain_name,
-                                "requested": want_raw,
-                            }
-                        )
-                
-                if "-" in chain_name:
-                    chain_suffix = chain_name.split("-", 1)[-1].upper().strip()
-                    chain_full_upper = chain_name.upper()
-                    # Alias listesiyle eşleştir
-                    for alias in want_aliases:
-                        alias_upper = alias.upper()
-                        # C-CHAIN özel kontrolü
-                        if alias_upper in ["C-CHAIN", "C CHAIN", "AVALANCHE C", "AVALANCHEC"]:
-                            if "C-CHAIN" in chain_full_upper or "C CHAIN" in chain_full_upper:
-                                chain_suffix_matches.append(ch)
-                                break
-                        elif alias_upper in chain_suffix or chain_suffix in alias_upper or alias_upper in chain_full_upper:
-                            chain_suffix_matches.append(ch)
-                            break
-                
-                if chain_display_name and want_raw.lower() == chain_display_name.lower():
-                    if not mainnet_match and not exact_match:
-                        fallback_match = ch
+            # Config'deki ağ ile eşleşiyor mu?
+            matched = False
+            if chain_upper == want or chain_suffix == want:
+                matched = True
             else:
-                if is_mainnet and not mainnet_match:
-                    mainnet_match = ch
-                elif not fallback_match:
-                    fallback_match = ch
-        
-        # Öncelik sırası: force_chain > exact_match > suffix_match > mainnet > fallback
-        # (Config'deki ağ her zaman öncelikli!)
-        if force_chain:
-            # force_chain zaten bulundu, chain değişkeni ayarlandı, atla
-            pass
-        elif exact_match:
-            chain = exact_match.get("chain")
-            fee = exact_match.get("minFee", "0")
-        elif chain_suffix_matches:
-            selected = None
-            # Önce EVM adresi için C-Chain ara
-            for ch in chain_suffix_matches:
-                ch_name = ch.get("chain", "").upper()
-                if "C-CHAIN" in ch_name or "C CHAIN" in ch_name:
-                    selected = ch
+                for alias in want_aliases:
+                    alias_upper = alias.upper()
+                    if alias_upper in chain_suffix or chain_suffix in alias_upper or alias_upper in chain_upper:
+                        matched = True
+                        break
+            
+            if matched:
+                can_wd = str(ch.get("canWd")).lower() == "true"
+                if can_wd:
+                    selected_chain = ch
+                    fee = ch.get("minFee", "0")
+                    write_log({
+                        "exchange": self.name,
+                        "symbol": symbol.upper(),
+                        "note": "OKX_NETWORK_MATCHED",
+                        "selected": chain_name,
+                        "requested": want_raw,
+                        "enabled": True,
+                    })
                     break
-            if not selected:
-                selected = chain_suffix_matches[0]
-            chain = selected.get("chain")
-            fee = selected.get("minFee", "0")
-            write_log(
-                {
+                else:
+                    chain_found_but_disabled = True
+                    disabled_chain_name = chain_name
+        
+        # Eşleşme kontrolü (Binance gibi sıkı)
+        if not selected_chain:
+            if chain_found_but_disabled:
+                write_log({
                     "exchange": self.name,
                     "symbol": symbol.upper(),
-                    "note": "OKX_CHAIN_SUFFIX_MATCH",
-                    "selected_chain": chain,
+                    "note": "OKX_NETWORK_DISABLED",
+                    "chain": disabled_chain_name,
                     "requested": want_raw,
-                }
-            )
-        elif mainnet_match:
-            chain = mainnet_match.get("chain")
-            fee = mainnet_match.get("minFee", "0")
-        elif fallback_match:
-            chain = fallback_match.get("chain")
-            fee = fallback_match.get("minFee", "0")
-            write_log(
-                {
+                })
+                return {"error": f"Withdrawal disabled for {symbol.upper()} on {disabled_chain_name} (OKX)"}, 400
+            else:
+                write_log({
                     "exchange": self.name,
                     "symbol": symbol.upper(),
-                    "note": "OKX_CHAIN_FALLBACK",
-                    "selected_chain": chain,
-                }
-            )
+                    "note": "OKX_NETWORK_NOT_FOUND",
+                    "requested": want_raw,
+                    "available": [e.get("chain") for e in entries],
+                })
+                return {"error": f"Network {want_raw} not found for {symbol.upper()} on OKX"}, 400
+        
+        chain = selected_chain.get("chain")
 
         if not chain:
             return {"error": "chain_not_found", "available": data1}, 400
