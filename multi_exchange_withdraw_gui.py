@@ -1673,6 +1673,7 @@ class OKXAdapter(BaseExchange):
             "WAVES": ["WAVES"],
             "MANTRA": ["MANTRA", "OM"],
             "OM": ["MANTRA", "OM"],
+            "LUNA": ["LUNA", "TERRA", "TERRA 2.0"],
         }
         
         # Tüm chain'leri topla
