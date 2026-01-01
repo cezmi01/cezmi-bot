@@ -1667,6 +1667,10 @@ class OKXAdapter(BaseExchange):
             "FLOW": ["FLOW"],
             "KSM": ["KSM", "KUSAMA"],
             "STX": ["STX", "STACKS"],
+            "DASH": ["DASH"],
+            "EOS": ["EOS"],
+            "ONT": ["ONT", "ONTOLOGY"],
+            "WAVES": ["WAVES"],
         }
         
         # Tüm chain'leri topla
