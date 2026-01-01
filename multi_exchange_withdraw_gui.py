@@ -1671,6 +1671,8 @@ class OKXAdapter(BaseExchange):
             "EOS": ["EOS"],
             "ONT": ["ONT", "ONTOLOGY"],
             "WAVES": ["WAVES"],
+            "MANTRA": ["MANTRA", "OM"],
+            "OM": ["MANTRA", "OM"],
         }
         
         # Tüm chain'leri topla
