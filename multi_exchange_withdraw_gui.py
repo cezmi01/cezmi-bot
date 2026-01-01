@@ -1667,7 +1667,7 @@ class OKXAdapter(BaseExchange):
             "FLOW": ["FLOW"],
             "KSM": ["KSM", "KUSAMA"],
             "STX": ["STX", "STACKS"],
-            "DASH": ["DASH"],
+            "DASH": ["DASH", "DIGITAL CASH"],
             "EOS": ["EOS"],
             "ONT": ["ONT", "ONTOLOGY"],
             "WAVES": ["WAVES"],
