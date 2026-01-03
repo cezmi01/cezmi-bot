@@ -298,6 +298,118 @@ export default function App() {
 
   const rows: AssetRow[] = useMemo(
     () => {
+      const initial: AssetRow[] = [
+        {
+          asset: 'CHZ',
+          cells: {
+            btcturk: [
+              { kind: 'hot', label: 'HOT' },
+              { kind: 'cold', label: 'COLD' },
+            ],
+            paribu: [
+              { kind: 'hot', label: 'HOT' },
+              { kind: 'cold', label: 'COLD' },
+            ],
+            binance: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
+            okx: [{ kind: 'hot', label: 'HOT' }],
+            bybit: [{ kind: 'hot', label: 'HOT' }],
+            gate: [{ kind: 'hot', label: 'HOT' }],
+            mexc: [{ kind: 'hot', label: 'HOT' }],
+            bitget: [{ kind: 'hot', label: 'HOT' }],
+            kucoin: null,
+            coinbase: null,
+          },
+        },
+        {
+          asset: 'ETH',
+          cells: {
+            btcturk: [
+              { kind: 'hot', label: 'HOT' },
+              { kind: 'cold', label: 'COLD' },
+            ],
+            paribu: [
+              { kind: 'hot', label: 'HOT' },
+              { kind: 'cold', label: 'COLD' },
+            ],
+            binance: [
+              { kind: 'hot', label: 'HOT-14' },
+              { kind: 'hot', label: 'HOT-15' },
+              { kind: 'hot', label: 'HOT-16' },
+            ],
+            okx: [{ kind: 'hot', label: 'HOT' }],
+            bybit: [{ kind: 'hot', label: 'HOT' }],
+            gate: [{ kind: 'hot', label: 'HOT' }],
+            mexc: [{ kind: 'hot', label: 'HOT' }],
+            bitget: [{ kind: 'hot', label: 'HOT' }],
+            kucoin: [{ kind: 'hot', label: 'HOT' }],
+            coinbase: [{ kind: 'hot', label: 'HOT' }, { kind: 'waiting', label: 'Bekleniyor' }],
+          },
+        },
+        {
+          asset: 'SOL',
+          cells: {
+            btcturk: [
+              { kind: 'hot', label: 'HOT' },
+              { kind: 'cold', label: 'COLD' },
+            ],
+            paribu: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
+            binance: null,
+            okx: null,
+            bybit: null,
+            gate: [{ kind: 'hot', label: 'HOT' }],
+            mexc: [{ kind: 'hot', label: 'HOT' }],
+            bitget: null,
+            kucoin: null,
+            coinbase: null,
+          },
+        },
+        {
+          asset: 'BSC',
+          cells: {
+            btcturk: 'x',
+            paribu: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
+            binance: null,
+            okx: null,
+            bybit: null,
+            gate: null,
+            mexc: null,
+            bitget: null,
+            kucoin: null,
+            coinbase: null,
+          },
+        },
+        {
+          asset: 'TRX',
+          cells: {
+            btcturk: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
+            paribu: [{ kind: 'hot', label: 'HOT' }, { kind: 'waiting', label: 'Bekleniyor' }],
+            binance: null,
+            okx: null,
+            bybit: null,
+            gate: null,
+            mexc: null,
+            bitget: null,
+            kucoin: null,
+            coinbase: null,
+          },
+        },
+        {
+          asset: 'AVAX',
+          cells: {
+            btcturk: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
+            paribu: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
+            binance: null,
+            okx: null,
+            bybit: null,
+            gate: null,
+            mexc: null,
+            bitget: null,
+            kucoin: null,
+            coinbase: null,
+          },
+        },
+      ]
+
       // Coin listesi (senin verdiğin): ARB, FLR, ADA, BASE, BTC, DASH, DOGE, DOT, DYM, ENJ, EOS, ETC, ETHW,
       // FIL, FLOW, GLMR, HBAR, ICP, INJ, KAVA, KSM, LTC, LUNA, MANTA, MINA, IOTA, MNT, NEAR, NEO, ONT,
       // OP, POL, RVN, SEI, SONIC, STX, SUI, THETA, THOR, TIA, TON, VANA
@@ -372,6 +484,8 @@ export default function App() {
       }
 
       const unique = Array.from(new Set(out))
+      const initialSet = new Set(initial.map((r) => r.asset))
+      const additional = unique.filter((a) => !initialSet.has(a))
 
       const emptyCells = {
         btcturk: null,
@@ -386,12 +500,15 @@ export default function App() {
         coinbase: null,
       } as const
 
-      return unique.map(
+      return [
+        ...initial,
+        ...additional.map(
         (asset): AssetRow => ({
           asset,
           cells: { ...emptyCells },
         }),
-      )
+        ),
+      ]
     },
     [],
   )
