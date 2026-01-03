@@ -17,14 +17,15 @@ type Exchange = {
   count: number
 }
 
-type WalletLinks = Record<string, { hot?: string; cold?: string }>
+type WalletLinks = Record<string, Record<string, { hot?: string; cold?: string }>>
 
 type AssetRow = {
   asset: string
   cells: Record<string, CellValue>
 }
 
-const WALLET_LINKS_STORAGE_KEY = 'walletLinks:v1'
+const WALLET_LINKS_STORAGE_KEY = 'walletLinks:v2'
+const DEFAULT_ASSET_KEY = '__default__'
 
 function normalizeUrl(url: string) {
   const trimmed = url.trim()
@@ -47,6 +48,31 @@ function loadWalletLinks(): WalletLinks {
 
 function saveWalletLinks(links: WalletLinks) {
   localStorage.setItem(WALLET_LINKS_STORAGE_KEY, JSON.stringify(links))
+}
+
+function migrateWalletLinksFromV1IfNeeded(): WalletLinks {
+  // v2 yoksa, eski v1 (exchange -> {hot,cold}) kayıtlarını "varsayılan" olarak içeri al
+  const existingV2 = loadWalletLinks()
+  if (Object.keys(existingV2).length > 0) return existingV2
+
+  try {
+    const rawV1 = localStorage.getItem('walletLinks:v1')
+    if (!rawV1) return {}
+    const parsed: unknown = JSON.parse(rawV1)
+    if (!parsed || typeof parsed !== 'object') return {}
+    const v1 = parsed as Record<string, { hot?: string; cold?: string }>
+    const migrated: WalletLinks = {}
+    for (const [exchangeId, links] of Object.entries(v1)) {
+      migrated[exchangeId] = {
+        [DEFAULT_ASSET_KEY]: { hot: links.hot ?? '', cold: links.cold ?? '' },
+      }
+    }
+    // v2'ye de yaz ki tekrar taşımaya gerek kalmasın
+    saveWalletLinks(migrated)
+    return migrated
+  } catch {
+    return {}
+  }
 }
 
 function useTheme() {
@@ -188,10 +214,23 @@ function badgeWalletType(badge: CellItem): 'hot' | 'cold' | null {
 }
 
 function getWalletHref(links: WalletLinks, exchangeId: string, walletType: 'hot' | 'cold') {
-  const entry = links[exchangeId]
+  const entry = links[exchangeId]?.[DEFAULT_ASSET_KEY]
   const raw = walletType === 'hot' ? entry?.hot : entry?.cold
   const normalized = raw ? normalizeUrl(raw) : ''
   return normalized || undefined
+}
+
+function getWalletHrefForAsset(
+  links: WalletLinks,
+  exchangeId: string,
+  asset: string,
+  walletType: 'hot' | 'cold',
+) {
+  const perAsset = links[exchangeId]?.[asset]
+  const raw = walletType === 'hot' ? perAsset?.hot : perAsset?.cold
+  const normalized = raw ? normalizeUrl(raw) : ''
+  if (normalized) return normalized
+  return getWalletHref(links, exchangeId, walletType)
 }
 
 function Modal({
@@ -375,7 +414,7 @@ export default function App() {
   const [query, setQuery] = useState('')
   const [hideEmptyColumns, setHideEmptyColumns] = useState(false)
   const [hideDisconnectedRows, setHideDisconnectedRows] = useState(false)
-  const [walletLinks, setWalletLinks] = useState<WalletLinks>(() => loadWalletLinks())
+  const [walletLinks, setWalletLinks] = useState<WalletLinks>(() => migrateWalletLinksFromV1IfNeeded())
   const [linksOpen, setLinksOpen] = useState(false)
 
   const [visibleExchangeIds, setVisibleExchangeIds] = useState<string[]>(
@@ -412,6 +451,8 @@ export default function App() {
     () => exchanges.filter((e) => effectiveExchangeIds.includes(e.id)),
     [exchanges, effectiveExchangeIds],
   )
+
+  const assets = useMemo(() => rows.map((r) => r.asset), [rows])
 
   return (
     <div className="h-[100dvh] w-screen overflow-hidden bg-[radial-gradient(1200px_600px_at_30%_-20%,rgba(56,189,248,0.15),transparent_60%),radial-gradient(900px_450px_at_90%_10%,rgba(34,197,94,0.10),transparent_55%)] p-4 md:p-6">
@@ -490,45 +531,124 @@ export default function App() {
 
           <div className="mt-4 grid gap-3">
             {exchanges.map((ex) => {
-              const hot = walletLinks[ex.id]?.hot ?? ''
-              const cold = walletLinks[ex.id]?.cold ?? ''
+              const defHot = walletLinks[ex.id]?.[DEFAULT_ASSET_KEY]?.hot ?? ''
+              const defCold = walletLinks[ex.id]?.[DEFAULT_ASSET_KEY]?.cold ?? ''
               return (
                 <div key={ex.id} className="panel-surface-2 px-4 py-4">
                   <div className="mb-3 flex items-center justify-between">
                     <div className="text-sm font-semibold text-slate-100">{ex.name}</div>
                     <div className="text-xs text-slate-300/70">{ex.id}</div>
                   </div>
+
                   <div className="grid gap-3 md:grid-cols-2">
                     <label className="grid gap-2">
-                      <span className="text-xs font-semibold text-slate-200">HOT link</span>
+                      <span className="text-xs font-semibold text-slate-200">
+                        Varsayılan HOT link (tüm varlıklar)
+                      </span>
                       <input
-                        value={hot}
+                        value={defHot}
                         onChange={(e) => {
                           const next = e.target.value
                           setWalletLinks((prev) => ({
                             ...prev,
-                            [ex.id]: { ...(prev[ex.id] ?? {}), hot: next },
+                            [ex.id]: {
+                              ...(prev[ex.id] ?? {}),
+                              [DEFAULT_ASSET_KEY]: {
+                                ...(prev[ex.id]?.[DEFAULT_ASSET_KEY] ?? {}),
+                                hot: next,
+                              },
+                            },
                           }))
                         }}
                         placeholder="https://..."
                         className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-400/70 outline-none focus:border-sky-500/50"
                       />
                     </label>
+
                     <label className="grid gap-2">
-                      <span className="text-xs font-semibold text-slate-200">COLD link</span>
+                      <span className="text-xs font-semibold text-slate-200">
+                        Varsayılan COLD link (tüm varlıklar)
+                      </span>
                       <input
-                        value={cold}
+                        value={defCold}
                         onChange={(e) => {
                           const next = e.target.value
                           setWalletLinks((prev) => ({
                             ...prev,
-                            [ex.id]: { ...(prev[ex.id] ?? {}), cold: next },
+                            [ex.id]: {
+                              ...(prev[ex.id] ?? {}),
+                              [DEFAULT_ASSET_KEY]: {
+                                ...(prev[ex.id]?.[DEFAULT_ASSET_KEY] ?? {}),
+                                cold: next,
+                              },
+                            },
                           }))
                         }}
                         placeholder="https://..."
                         className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-400/70 outline-none focus:border-sky-500/50"
                       />
                     </label>
+                  </div>
+
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="min-w-[760px] w-full border-separate border-spacing-0">
+                      <thead>
+                        <tr>
+                          <th className="sticky left-0 bg-slate-950/10 px-2 py-2 text-left text-xs font-semibold text-slate-200">
+                            Varlık
+                          </th>
+                          <th className="px-2 py-2 text-left text-xs font-semibold text-slate-200">HOT</th>
+                          <th className="px-2 py-2 text-left text-xs font-semibold text-slate-200">COLD</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {assets.map((asset) => {
+                          const hot = walletLinks[ex.id]?.[asset]?.hot ?? ''
+                          const cold = walletLinks[ex.id]?.[asset]?.cold ?? ''
+                          return (
+                            <tr key={asset} className="border-t border-white/10">
+                              <td className="sticky left-0 bg-slate-950/10 px-2 py-2 text-sm font-semibold text-slate-100">
+                                {asset}
+                              </td>
+                              <td className="px-2 py-2">
+                                <input
+                                  value={hot}
+                                  onChange={(e) => {
+                                    const next = e.target.value
+                                    setWalletLinks((prev) => ({
+                                      ...prev,
+                                      [ex.id]: {
+                                        ...(prev[ex.id] ?? {}),
+                                        [asset]: { ...(prev[ex.id]?.[asset] ?? {}), hot: next },
+                                      },
+                                    }))
+                                  }}
+                                  placeholder="(boş bırak: varsayılanı kullan)"
+                                  className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400/70 outline-none focus:border-sky-500/50"
+                                />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input
+                                  value={cold}
+                                  onChange={(e) => {
+                                    const next = e.target.value
+                                    setWalletLinks((prev) => ({
+                                      ...prev,
+                                      [ex.id]: {
+                                        ...(prev[ex.id] ?? {}),
+                                        [asset]: { ...(prev[ex.id]?.[asset] ?? {}), cold: next },
+                                      },
+                                    }))
+                                  }}
+                                  placeholder="(boş bırak: varsayılanı kullan)"
+                                  className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400/70 outline-none focus:border-sky-500/50"
+                                />
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )
@@ -614,7 +734,7 @@ export default function App() {
                                   label={b.label}
                                   href={
                                     badgeWalletType(b)
-                                      ? getWalletHref(walletLinks, id, badgeWalletType(b)!)
+                                      ? getWalletHrefForAsset(walletLinks, id, r.asset, badgeWalletType(b)!)
                                       : undefined
                                   }
                                 />
