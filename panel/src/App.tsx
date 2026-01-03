@@ -17,14 +17,23 @@ type Exchange = {
   count: number
 }
 
-type WalletLinks = Record<string, Record<string, { hot?: string; cold?: string }>>
+type WalletLinks = Record<
+  string,
+  Record<
+    string,
+    {
+      hot?: [string?, string?, string?, string?]
+      cold?: string
+    }
+  >
+>
 
 type AssetRow = {
   asset: string
   cells: Record<string, CellValue>
 }
 
-const WALLET_LINKS_STORAGE_KEY = 'walletLinks:v2'
+const WALLET_LINKS_STORAGE_KEY = 'walletLinks:v3'
 const DEFAULT_ASSET_KEY = '__default__'
 
 function normalizeUrl(url: string) {
@@ -50,11 +59,36 @@ function saveWalletLinks(links: WalletLinks) {
   localStorage.setItem(WALLET_LINKS_STORAGE_KEY, JSON.stringify(links))
 }
 
-function migrateWalletLinksFromV1IfNeeded(): WalletLinks {
-  // v2 yoksa, eski v1 (exchange -> {hot,cold}) kayıtlarını "varsayılan" olarak içeri al
-  const existingV2 = loadWalletLinks()
-  if (Object.keys(existingV2).length > 0) return existingV2
+function migrateWalletLinksFromOlderIfNeeded(): WalletLinks {
+  // v3 varsa onu kullan
+  const existingV3 = loadWalletLinks()
+  if (Object.keys(existingV3).length > 0) return existingV3
 
+  const toHot4 = (hot?: string) => (hot ? ([hot, '', '', ''] as [string?, string?, string?, string?]) : undefined)
+
+  // v2 (exchange -> asset -> {hot, cold}) varsa onu v3'e çevir
+  try {
+    const rawV2 = localStorage.getItem('walletLinks:v2')
+    if (rawV2) {
+      const parsed: unknown = JSON.parse(rawV2)
+      if (parsed && typeof parsed === 'object') {
+        const v2 = parsed as Record<string, Record<string, { hot?: string; cold?: string }>>
+        const migrated: WalletLinks = {}
+        for (const [exchangeId, assets] of Object.entries(v2)) {
+          migrated[exchangeId] = {}
+          for (const [asset, links] of Object.entries(assets)) {
+            migrated[exchangeId][asset] = { hot: toHot4(links.hot), cold: links.cold ?? '' }
+          }
+        }
+        saveWalletLinks(migrated)
+        return migrated
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // v1 (exchange -> {hot,cold}) varsa onu varsayılan olarak içeri al
   try {
     const rawV1 = localStorage.getItem('walletLinks:v1')
     if (!rawV1) return {}
@@ -64,10 +98,9 @@ function migrateWalletLinksFromV1IfNeeded(): WalletLinks {
     const migrated: WalletLinks = {}
     for (const [exchangeId, links] of Object.entries(v1)) {
       migrated[exchangeId] = {
-        [DEFAULT_ASSET_KEY]: { hot: links.hot ?? '', cold: links.cold ?? '' },
+        [DEFAULT_ASSET_KEY]: { hot: toHot4(links.hot), cold: links.cold ?? '' },
       }
     }
-    // v2'ye de yaz ki tekrar taşımaya gerek kalmasın
     saveWalletLinks(migrated)
     return migrated
   } catch {
@@ -213,24 +246,26 @@ function badgeWalletType(badge: CellItem): 'hot' | 'cold' | null {
   return null
 }
 
-function getWalletHref(links: WalletLinks, exchangeId: string, walletType: 'hot' | 'cold') {
-  const entry = links[exchangeId]?.[DEFAULT_ASSET_KEY]
-  const raw = walletType === 'hot' ? entry?.hot : entry?.cold
-  const normalized = raw ? normalizeUrl(raw) : ''
-  return normalized || undefined
-}
-
 function getWalletHrefForAsset(
   links: WalletLinks,
   exchangeId: string,
   asset: string,
   walletType: 'hot' | 'cold',
+  hotIndex?: 0 | 1 | 2 | 3,
 ) {
   const perAsset = links[exchangeId]?.[asset]
-  const raw = walletType === 'hot' ? perAsset?.hot : perAsset?.cold
+  const perDefault = links[exchangeId]?.[DEFAULT_ASSET_KEY]
+
+  if (walletType === 'cold') {
+    const raw = perAsset?.cold ?? perDefault?.cold ?? ''
+    const normalized = raw ? normalizeUrl(raw) : ''
+    return normalized || undefined
+  }
+
+  const idx = hotIndex ?? 0
+  const raw = perAsset?.hot?.[idx] ?? perDefault?.hot?.[idx] ?? ''
   const normalized = raw ? normalizeUrl(raw) : ''
-  if (normalized) return normalized
-  return getWalletHref(links, exchangeId, walletType)
+  return normalized || undefined
 }
 
 function Modal({
@@ -536,7 +571,7 @@ export default function App() {
   const [query, setQuery] = useState('')
   const [hideEmptyColumns, setHideEmptyColumns] = useState(false)
   const [hideDisconnectedRows, setHideDisconnectedRows] = useState(false)
-  const [walletLinks, setWalletLinks] = useState<WalletLinks>(() => migrateWalletLinksFromV1IfNeeded())
+  const [walletLinks, setWalletLinks] = useState<WalletLinks>(() => migrateWalletLinksFromOlderIfNeeded())
   const [linksOpen, setLinksOpen] = useState(false)
 
   const [visibleExchangeIds, setVisibleExchangeIds] = useState<string[]>(
@@ -653,7 +688,7 @@ export default function App() {
 
           <div className="mt-4 grid gap-3">
             {exchanges.map((ex) => {
-              const defHot = walletLinks[ex.id]?.[DEFAULT_ASSET_KEY]?.hot ?? ''
+              const defHot = walletLinks[ex.id]?.[DEFAULT_ASSET_KEY]?.hot ?? ['', '', '', '']
               const defCold = walletLinks[ex.id]?.[DEFAULT_ASSET_KEY]?.cold ?? ''
               return (
                 <div key={ex.id} className="panel-surface-2 px-4 py-4">
@@ -665,26 +700,36 @@ export default function App() {
                   <div className="grid gap-3 md:grid-cols-2">
                     <label className="grid gap-2">
                       <span className="text-xs font-semibold text-slate-200">
-                        Varsayılan HOT link (tüm varlıklar)
+                        Varsayılan HOT linkler (tüm varlıklar)
                       </span>
-                      <input
-                        value={defHot}
-                        onChange={(e) => {
-                          const next = e.target.value
-                          setWalletLinks((prev) => ({
-                            ...prev,
-                            [ex.id]: {
-                              ...(prev[ex.id] ?? {}),
-                              [DEFAULT_ASSET_KEY]: {
-                                ...(prev[ex.id]?.[DEFAULT_ASSET_KEY] ?? {}),
-                                hot: next,
-                              },
-                            },
-                          }))
-                        }}
-                        placeholder="https://..."
-                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-400/70 outline-none focus:border-sky-500/50"
-                      />
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {[0, 1, 2, 3].map((i) => (
+                          <input
+                            key={i}
+                            value={defHot[i] ?? ''}
+                            onChange={(e) => {
+                              const next = e.target.value
+                              setWalletLinks((prev) => {
+                                const existing = prev[ex.id]?.[DEFAULT_ASSET_KEY]?.hot ?? ['', '', '', '']
+                                const hot = [...existing] as [string?, string?, string?, string?]
+                                hot[i as 0 | 1 | 2 | 3] = next
+                                return {
+                                  ...prev,
+                                  [ex.id]: {
+                                    ...(prev[ex.id] ?? {}),
+                                    [DEFAULT_ASSET_KEY]: {
+                                      ...(prev[ex.id]?.[DEFAULT_ASSET_KEY] ?? {}),
+                                      hot,
+                                    },
+                                  },
+                                }
+                              })
+                            }}
+                            placeholder={`HOT-${i + 1} https://...`}
+                            className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-400/70 outline-none focus:border-sky-500/50"
+                          />
+                        ))}
+                      </div>
                     </label>
 
                     <label className="grid gap-2">
@@ -725,7 +770,7 @@ export default function App() {
                       </thead>
                       <tbody>
                         {assets.map((asset) => {
-                          const hot = walletLinks[ex.id]?.[asset]?.hot ?? ''
+                          const hot = walletLinks[ex.id]?.[asset]?.hot ?? ['', '', '', '']
                           const cold = walletLinks[ex.id]?.[asset]?.cold ?? ''
                           return (
                             <tr key={asset} className="border-t border-white/10">
@@ -733,21 +778,31 @@ export default function App() {
                                 {asset}
                               </td>
                               <td className="px-2 py-2">
-                                <input
-                                  value={hot}
-                                  onChange={(e) => {
-                                    const next = e.target.value
-                                    setWalletLinks((prev) => ({
-                                      ...prev,
-                                      [ex.id]: {
-                                        ...(prev[ex.id] ?? {}),
-                                        [asset]: { ...(prev[ex.id]?.[asset] ?? {}), hot: next },
-                                      },
-                                    }))
-                                  }}
-                                  placeholder="(boş bırak: varsayılanı kullan)"
-                                  className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400/70 outline-none focus:border-sky-500/50"
-                                />
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                  {[0, 1, 2, 3].map((i) => (
+                                    <input
+                                      key={i}
+                                      value={hot[i] ?? ''}
+                                      onChange={(e) => {
+                                        const next = e.target.value
+                                        setWalletLinks((prev) => {
+                                          const existing = prev[ex.id]?.[asset]?.hot ?? ['', '', '', '']
+                                          const nextHot = [...existing] as [string?, string?, string?, string?]
+                                          nextHot[i as 0 | 1 | 2 | 3] = next
+                                          return {
+                                            ...prev,
+                                            [ex.id]: {
+                                              ...(prev[ex.id] ?? {}),
+                                              [asset]: { ...(prev[ex.id]?.[asset] ?? {}), hot: nextHot },
+                                            },
+                                          }
+                                        })
+                                      }}
+                                      placeholder={`HOT-${i + 1} (boş: varsayılan)`}
+                                      className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400/70 outline-none focus:border-sky-500/50"
+                                    />
+                                  ))}
+                                </div>
                               </td>
                               <td className="px-2 py-2">
                                 <input
@@ -849,18 +904,27 @@ export default function App() {
                             <span className="text-slate-500/80">—</span>
                           ) : (
                             <div className="flex flex-wrap gap-2">
-                              {cell.map((b, idx) => (
-                                <Badge
-                                  key={`${b.label}-${idx}`}
-                                  kind={b.kind}
-                                  label={b.label}
-                                  href={
-                                    badgeWalletType(b)
-                                      ? getWalletHrefForAsset(walletLinks, id, r.asset, badgeWalletType(b)!)
-                                      : undefined
+                              {(() => {
+                                let hotIdx: 0 | 1 | 2 | 3 = 0
+                                return cell.map((b, idx) => {
+                                  const t = badgeWalletType(b)
+                                  let href: string | undefined
+                                  if (t === 'hot') {
+                                    href = getWalletHrefForAsset(walletLinks, id, r.asset, 'hot', hotIdx)
+                                    if (hotIdx < 3) hotIdx = ((hotIdx + 1) as 0 | 1 | 2 | 3)
+                                  } else if (t === 'cold') {
+                                    href = getWalletHrefForAsset(walletLinks, id, r.asset, 'cold')
                                   }
-                                />
-                              ))}
+                                  return (
+                                    <Badge
+                                      key={`${b.label}-${idx}`}
+                                      kind={b.kind}
+                                      label={b.label}
+                                      href={href}
+                                    />
+                                  )
+                                })
+                              })()}
                             </div>
                           )}
                         </td>
