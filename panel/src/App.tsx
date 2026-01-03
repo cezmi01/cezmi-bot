@@ -412,7 +412,8 @@ export default function App() {
 
       // Coin listesi (senin verdiğin): ARB, FLR, ADA, BASE, BTC, DASH, DOGE, DOT, DYM, ENJ, EOS, ETC, ETHW,
       // FIL, FLOW, GLMR, HBAR, ICP, INJ, KAVA, KSM, LTC, LUNA, MANTA, MINA, IOTA, MNT, NEAR, NEO, ONT,
-      // OP, POL, RVN, SEI, SONIC, STX, SUI, THETA, THOR, TIA, TON, VANA
+      // OP, POL, RVN, SEI, SONIC, STX, SUI, THETA, THOR, TIA, TON, VANA,
+      // VET, WAVES, XLM, XRP, XTZ, ZIL, ZK, 0G, XPL, TAO, BERA, BCH, ALGO, ATOM, APT, AXL, DYDX, MANTRA, MONAD
       //
       // Notlar:
       // - "ICP,," gibi tekrar/boşları temizliyoruz.
@@ -462,6 +463,25 @@ export default function App() {
         'TİA',
         'TON',
         'VANA',
+        'VET',
+        'WAVES',
+        'XLM',
+        'XRP',
+        'XTZ',
+        'ZIL',
+        'ZK',
+        '0G',
+        'XPL',
+        'TAO',
+        'BERA',
+        'BCH',
+        'ALGO',
+        'ATOM',
+        'APT',
+        'AXL',
+        'DYDX',
+        'MANTRA',
+        'MONAD',
         '',
       ]
 
