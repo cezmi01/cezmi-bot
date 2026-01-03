@@ -246,6 +246,21 @@ function badgeWalletType(badge: CellItem): 'hot' | 'cold' | null {
   return null
 }
 
+function getExplicitLinksForAsset(links: WalletLinks, exchangeId: string, asset: string) {
+  const entry = links[exchangeId]?.[asset]
+  const hot = entry?.hot ?? ['', '', '', '']
+  const cold = entry?.cold ?? ''
+
+  const hotNormalized = [0, 1, 2, 3].map((i) => normalizeUrl(hot[i as 0 | 1 | 2 | 3] ?? '')).filter(Boolean)
+  const coldNormalized = normalizeUrl(cold)
+
+  return {
+    hot: hotNormalized,
+    cold: coldNormalized || '',
+    hasAny: hotNormalized.length > 0 || Boolean(coldNormalized),
+  }
+}
+
 function getWalletHrefForAsset(
   links: WalletLinks,
   exchangeId: string,
@@ -893,6 +908,7 @@ export default function App() {
 
                     {effectiveExchangeIds.map((id) => {
                       const cell = r.cells[id] ?? null
+                      const explicit = getExplicitLinksForAsset(walletLinks, id, r.asset)
                       return (
                         <td
                           key={id}
@@ -901,7 +917,23 @@ export default function App() {
                           {cell === 'x' ? (
                             <span className="text-red-500 text-lg font-bold">X</span>
                           ) : cell === null || (Array.isArray(cell) && cell.length === 0) ? (
-                            <span className="text-slate-500/80">—</span>
+                            explicit.hasAny ? (
+                              <div className="flex flex-wrap gap-2">
+                                {explicit.hot.map((href, i) => (
+                                  <Badge
+                                    key={`hot-${i}`}
+                                    kind="hot"
+                                    label={i === 0 ? 'HOT' : `HOT-${i + 1}`}
+                                    href={href}
+                                  />
+                                ))}
+                                {explicit.cold ? (
+                                  <Badge key="cold" kind="cold" label="COLD" href={explicit.cold} />
+                                ) : null}
+                              </div>
+                            ) : (
+                              <span className="text-slate-500/80">—</span>
+                            )
                           ) : (
                             <div className="flex flex-wrap gap-2">
                               {(() => {
