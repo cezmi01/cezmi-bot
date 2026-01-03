@@ -297,117 +297,102 @@ export default function App() {
   )
 
   const rows: AssetRow[] = useMemo(
-    () => [
-      {
-        asset: 'CHZ',
-        cells: {
-          btcturk: [
-            { kind: 'hot', label: 'HOT' },
-            { kind: 'cold', label: 'COLD' },
-          ],
-          paribu: [
-            { kind: 'hot', label: 'HOT' },
-            { kind: 'cold', label: 'COLD' },
-          ],
-          binance: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
-          okx: [{ kind: 'hot', label: 'HOT' }],
-          bybit: [{ kind: 'hot', label: 'HOT' }],
-          gate: [{ kind: 'hot', label: 'HOT' }],
-          mexc: [{ kind: 'hot', label: 'HOT' }],
-          bitget: [{ kind: 'hot', label: 'HOT' }],
-          kucoin: null,
-          coinbase: null,
-        },
-      },
-      {
-        asset: 'ETH',
-        cells: {
-          btcturk: [
-            { kind: 'hot', label: 'HOT' },
-            { kind: 'cold', label: 'COLD' },
-          ],
-          paribu: [
-            { kind: 'hot', label: 'HOT' },
-            { kind: 'cold', label: 'COLD' },
-          ],
-          binance: [
-            { kind: 'hot', label: 'HOT-14' },
-            { kind: 'hot', label: 'HOT-15' },
-            { kind: 'hot', label: 'HOT-16' },
-          ],
-          okx: [{ kind: 'hot', label: 'HOT' }],
-          bybit: [{ kind: 'hot', label: 'HOT' }],
-          gate: [{ kind: 'hot', label: 'HOT' }],
-          mexc: [{ kind: 'hot', label: 'HOT' }],
-          bitget: [{ kind: 'hot', label: 'HOT' }],
-          kucoin: [{ kind: 'hot', label: 'HOT' }],
-          coinbase: [{ kind: 'hot', label: 'HOT' }, { kind: 'waiting', label: 'Bekleniyor' }],
-        },
-      },
-      {
-        asset: 'SOL',
-        cells: {
-          btcturk: [
-            { kind: 'hot', label: 'HOT' },
-            { kind: 'cold', label: 'COLD' },
-          ],
-          paribu: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
-          binance: null,
-          okx: null,
-          bybit: null,
-          gate: [{ kind: 'hot', label: 'HOT' }],
-          mexc: [{ kind: 'hot', label: 'HOT' }],
-          bitget: null,
-          kucoin: null,
-          coinbase: null,
-        },
-      },
-      {
-        asset: 'BSC',
-        cells: {
-          btcturk: 'x',
-          paribu: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
-          binance: null,
-          okx: null,
-          bybit: null,
-          gate: null,
-          mexc: null,
-          bitget: null,
-          kucoin: null,
-          coinbase: null,
-        },
-      },
-      {
-        asset: 'TRX',
-        cells: {
-          btcturk: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
-          paribu: [{ kind: 'hot', label: 'HOT' }, { kind: 'waiting', label: 'Bekleniyor' }],
-          binance: null,
-          okx: null,
-          bybit: null,
-          gate: null,
-          mexc: null,
-          bitget: null,
-          kucoin: null,
-          coinbase: null,
-        },
-      },
-      {
-        asset: 'AVAX',
-        cells: {
-          btcturk: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
-          paribu: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
-          binance: null,
-          okx: null,
-          bybit: null,
-          gate: null,
-          mexc: null,
-          bitget: null,
-          kucoin: null,
-          coinbase: null,
-        },
-      },
-    ],
+    () => {
+      // Coin listesi (senin verdiğin): ARB, FLR, ADA, BASE, BTC, DASH, DOGE, DOT, DYM, ENJ, EOS, ETC, ETHW,
+      // FIL, FLOW, GLMR, HBAR, ICP, INJ, KAVA, KSM, LTC, LUNA, MANTA, MINA, IOTA, MNT, NEAR, NEO, ONT,
+      // OP, POL, RVN, SEI, SONIC, STX, SUI, THETA, THOR, TIA, TON, VANA
+      //
+      // Notlar:
+      // - "ICP,," gibi tekrar/boşları temizliyoruz.
+      // - "SEİ/SUİ/SONİC/TİA" gibi yazımlar ticker'a uygun şekilde SEI/SUI/SONIC/TIA yapılır.
+      // - "KSMLTC" girişi KSM + LTC olarak ayrılır.
+      const raw = [
+        'ARB',
+        'FLR',
+        'ADA',
+        'BASE',
+        'BTC',
+        'DASH',
+        'DOGE',
+        'DOT',
+        'DYM',
+        'ENJ',
+        'EOS',
+        'ETC',
+        'ETHW',
+        'FIL',
+        'FLOW',
+        'GLMR',
+        'HBAR',
+        'ICP',
+        'INJ',
+        'ICP',
+        '',
+        'KAVA',
+        'KSMLTC',
+        'LUNA',
+        'MANTA',
+        'MINA',
+        'IOTA',
+        'MNT',
+        'NEAR',
+        'NEO',
+        'ONT',
+        'OP',
+        'POL',
+        'RVN',
+        'SEİ',
+        'SONİC',
+        'STX',
+        'SUİ',
+        'THETA',
+        'THOR',
+        'TİA',
+        'TON',
+        'VANA',
+        '',
+      ]
+
+      const normalizeTicker = (s: string) =>
+        s
+          .trim()
+          .replaceAll('İ', 'I')
+          .replaceAll('ı', 'i')
+          .toUpperCase()
+
+      const out: string[] = []
+      for (const item of raw) {
+        const t = normalizeTicker(item)
+        if (!t) continue
+        if (t === 'KSMLTC') {
+          out.push('KSM', 'LTC')
+          continue
+        }
+        out.push(t)
+      }
+
+      const unique = Array.from(new Set(out))
+
+      const emptyCells = {
+        btcturk: null,
+        paribu: null,
+        binance: null,
+        okx: null,
+        bybit: null,
+        gate: null,
+        mexc: null,
+        bitget: null,
+        kucoin: null,
+        coinbase: null,
+      } as const
+
+      return unique.map(
+        (asset): AssetRow => ({
+          asset,
+          cells: { ...emptyCells },
+        }),
+      )
+    },
     [],
   )
 
