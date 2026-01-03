@@ -414,8 +414,8 @@ export default function App() {
   )
 
   return (
-    <div className="min-h-full bg-[radial-gradient(1200px_600px_at_30%_-20%,rgba(56,189,248,0.15),transparent_60%),radial-gradient(900px_450px_at_90%_10%,rgba(34,197,94,0.10),transparent_55%)] px-6 py-8">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <div className="h-[100dvh] w-screen overflow-hidden bg-[radial-gradient(1200px_600px_at_30%_-20%,rgba(56,189,248,0.15),transparent_60%),radial-gradient(900px_450px_at_90%_10%,rgba(34,197,94,0.10),transparent_55%)] p-4 md:p-6">
+      <div className="flex h-full w-full flex-col gap-4">
         <div className="panel-surface px-5 py-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="relative w-full md:max-w-xl">
@@ -559,8 +559,8 @@ export default function App() {
           </div>
         </Modal>
 
-        <div className="panel-surface overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="panel-surface flex-1 overflow-hidden">
+          <div className="h-full overflow-auto">
             <table className="min-w-max w-full border-separate border-spacing-0">
               <thead>
                 <tr>
