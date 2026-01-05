@@ -426,7 +426,7 @@ export default function App() {
           asset: 'TRX',
           cells: {
             btcturk: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
-            paribu: [{ kind: 'waiting', label: 'Bekleniyor' }],
+            paribu: null,
             binance: null,
             okx: null,
             bybit: null,
