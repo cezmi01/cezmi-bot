@@ -356,10 +356,7 @@ export default function App() {
               { kind: 'hot', label: 'HOT' },
               { kind: 'cold', label: 'COLD' },
             ],
-            paribu: [
-              { kind: 'hot', label: 'HOT' },
-              { kind: 'cold', label: 'COLD' },
-            ],
+            paribu: null,
             binance: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
             okx: [{ kind: 'hot', label: 'HOT' }],
             bybit: [{ kind: 'hot', label: 'HOT' }],
@@ -377,10 +374,7 @@ export default function App() {
               { kind: 'hot', label: 'HOT' },
               { kind: 'cold', label: 'COLD' },
             ],
-            paribu: [
-              { kind: 'hot', label: 'HOT' },
-              { kind: 'cold', label: 'COLD' },
-            ],
+            paribu: null,
             binance: [
               { kind: 'hot', label: 'HOT-14' },
               { kind: 'hot', label: 'HOT-15' },
@@ -402,7 +396,7 @@ export default function App() {
               { kind: 'hot', label: 'HOT' },
               { kind: 'cold', label: 'COLD' },
             ],
-            paribu: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
+            paribu: null,
             binance: null,
             okx: null,
             bybit: null,
@@ -417,7 +411,7 @@ export default function App() {
           asset: 'BSC',
           cells: {
             btcturk: 'x',
-            paribu: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
+            paribu: null,
             binance: null,
             okx: null,
             bybit: null,
@@ -432,7 +426,7 @@ export default function App() {
           asset: 'TRX',
           cells: {
             btcturk: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
-            paribu: [{ kind: 'hot', label: 'HOT' }, { kind: 'waiting', label: 'Bekleniyor' }],
+            paribu: [{ kind: 'waiting', label: 'Bekleniyor' }],
             binance: null,
             okx: null,
             bybit: null,
@@ -447,7 +441,7 @@ export default function App() {
           asset: 'AVAX',
           cells: {
             btcturk: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
-            paribu: [{ kind: 'hot', label: 'HOT' }, { kind: 'cold', label: 'COLD' }],
+            paribu: null,
             binance: null,
             okx: null,
             bybit: null,
