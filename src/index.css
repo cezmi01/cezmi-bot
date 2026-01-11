@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* App baseline */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+@layer components {
+  .muted {
+    color: rgb(203 213 225 / 0.7); /* slate-300/70 */
+  }
+
+  .panel-surface {
+    border-radius: 1rem; /* rounded-2xl */
+    border: 1px solid rgb(255 255 255 / 0.1); /* border-white/10 */
+    background: rgb(2 6 23 / 0.4); /* bg-slate-950/40 */
+    box-shadow: 0 0 0 1px rgb(255 255 255 / 0.02);
+    backdrop-filter: blur(24px); /* backdrop-blur-xl */
+  }
+
+  .panel-surface-2 {
+    border-radius: 1rem; /* rounded-2xl */
+    border: 1px solid rgb(255 255 255 / 0.1); /* border-white/10 */
+    background: rgb(0 0 0 / 0.2); /* bg-black/20 */
+    backdrop-filter: blur(8px); /* backdrop-blur */
+  }
+}
+
