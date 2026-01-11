@@ -593,12 +593,34 @@ export default function App() {
         coinbase: null,
       } as const
 
+      const btcturkBlockedAssets = new Set([
+        'DYM',
+        'ICP',
+        'MANTA',
+        'MINA',
+        'IOTA',
+        'ONT',
+        'RVN',
+        'THETA',
+        'THOR',
+        'VET',
+        'WAVES',
+        'ZIL',
+        'TAO',
+        'BERA',
+        'BCH',
+        'DYDX',
+      ])
+
       return [
         ...initial,
         ...additional.map(
           (asset): AssetRow => ({
             asset,
-            cells: { ...emptyCells },
+            cells: {
+              ...emptyCells,
+              btcturk: btcturkBlockedAssets.has(asset) ? 'x' : null,
+            },
           }),
         ),
       ]
