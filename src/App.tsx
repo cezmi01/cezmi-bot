@@ -612,7 +612,29 @@ export default function App() {
         'DYDX',
       ])
 
-      return [
+      const paribuBlockedAssets = new Set([
+        'DASH',
+        'ENJ',
+        'EOS',
+        'ETC',
+        'ETHW',
+        'FLOW',
+        'GLMR',
+        'HBAR',
+        'INJ',
+        'KAVA',
+        'KSM',
+        'LUNA',
+        'MNT',
+        'POL',
+        'THOR',
+        'VANA',
+        '0G',
+        'AXL',
+        'MANTRA',
+      ])
+
+      const withAdditional = [
         ...initial,
         ...additional.map(
           (asset): AssetRow => ({
@@ -624,6 +646,16 @@ export default function App() {
           }),
         ),
       ]
+
+      // Ensure the "X" rules also apply to any pre-filled rows
+      return withAdditional.map((r) => ({
+        ...r,
+        cells: {
+          ...r.cells,
+          btcturk: btcturkBlockedAssets.has(r.asset) ? 'x' : r.cells.btcturk,
+          paribu: paribuBlockedAssets.has(r.asset) ? 'x' : r.cells.paribu,
+        },
+      }))
     },
     [],
   )
