@@ -7,8 +7,8 @@ Telegram bot to send alerts.
 ## Requirements
 
 - Node.js 18+
-- Upbit Open API access key and secret key
 - Telegram bot token and chat ID
+- Upbit Open API keys are optional (see Notes)
 
 ## Setup
 
@@ -37,6 +37,10 @@ Key environment variables:
 - `NOTIFY_ON_CLOSE`: send a message when deposits close
 
 ## Notes
+
+- If `UPBIT_OPEN_API_ACCESS_KEY` and `UPBIT_OPEN_API_SECRET_KEY` are not set,
+  the bot uses the public wallet status endpoint (`https://ccx{region}.upbit.com`).
+  In this mode, `net_type` data is not available and `TARGET_NET_TYPES` is ignored.
 
 Upbit states that the service status API is not real time and can be delayed
 by several minutes. Use it for notifications, not for time sensitive actions.
