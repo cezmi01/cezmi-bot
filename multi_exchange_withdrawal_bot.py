@@ -286,7 +286,39 @@ class BybitAdapter(BaseExchange):
             {"accountType": "FUND", "coin": sym},
         )
 
-        fund_available = Decimal(str(data.get("result", {}).get("balance", {}).get("walletBalance", "0"))) if status == 200 else Decimal("0")
+        def safe_decimal(val) -> Decimal:
+            if val is None or val == "" or val == "null":
+                return Decimal("0")
+            try:
+                return Decimal(str(val))
+            except Exception:
+                return Decimal("0")
+
+        fund_available = Decimal("0")
+        fund_wallet = Decimal("0")
+        fund_transfer = Decimal("0")
+        fund_withdrawable = Decimal("0")
+
+        if status == 200 and isinstance(data, dict) and data.get("retCode") == 0:
+            result = data.get("result", {})
+            balances = result.get("balance", [])
+            if isinstance(balances, dict):
+                balances = [balances]
+            elif not isinstance(balances, list):
+                balances = []
+
+            if not balances and isinstance(result, dict) and "coin" in result:
+                balances = [result]
+
+            for entry in balances:
+                if entry.get("coin", "").upper() == sym:
+                    fund_wallet = safe_decimal(entry.get("walletBalance"))
+                    fund_transfer = safe_decimal(entry.get("transferBalance"))
+                    fund_withdrawable = safe_decimal(entry.get("availableToWithdraw"))
+                    fund_available = max(fund_wallet, fund_transfer, fund_withdrawable)
+                    break
+
+        missing_amount = (required - fund_available).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
 
         write_log({
             "exchange": self.name,
@@ -294,19 +326,23 @@ class BybitAdapter(BaseExchange):
             "note": "FUND_BALANCE_CHECK",
             "status": status,
             "fund_available": str(fund_available),
+            "fund_wallet": str(fund_wallet),
+            "fund_transfer": str(fund_transfer),
+            "fund_withdrawable": str(fund_withdrawable),
             "required": str(required),
-            "needs_transfer": fund_available < required,
+            "missing_amount": str(missing_amount),
+            "needs_transfer": missing_amount > 0,
             "raw_result": data.get("result") if status == 200 else None,
         })
 
-        if fund_available >= required:
+        if missing_amount <= 0:
             self._last_balance_account = "FUND"
             return
 
         transfer_body = {
             "transferId": str(uuid.uuid4()),
             "coin": sym,
-            "amount": str(required),
+            "amount": str(missing_amount),
             "fromAccountType": "UNIFIED",
             "toAccountType": "FUND",
         }
@@ -317,6 +353,7 @@ class BybitAdapter(BaseExchange):
                 "symbol": sym,
                 "action": "TRANSFER_PREP",
                 "required": str(required),
+                "missing_amount": str(missing_amount),
                 "fund_available": str(fund_available),
                 "from": "UNIFIED",
                 "to": "FUND",
@@ -337,7 +374,7 @@ class BybitAdapter(BaseExchange):
                 "symbol": sym,
                 "action": "TRANSFER_OK",
                 "transferId": resp.get("result", {}).get("transferId"),
-                "amount": str(required),
+                "amount": str(missing_amount),
             }
         )
 
