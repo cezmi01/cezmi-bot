@@ -1,5 +1,25 @@
 [
   {
+    "symbol": "AERO",
+    "network": "BASE",
+    "btcturk": {
+      "symbol": "AERO",
+      "network": "BASE",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
+  },
+  {
+    "symbol": "H",
+    "network": "ETH",
+    "btcturk": {
+      "symbol": "H",
+      "network": "ETH",
+      "address": "0xc2289DDf8b04DEa6E2ADaf21C74852ce5c8C92B1",
+      "memo": null
+    }
+  },
+  {
     "symbol": "ZK",
     "network": "ZKSYNCERA",
     "btcturk": {
