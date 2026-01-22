@@ -97,7 +97,8 @@ class BybitAdapter(BaseExchange):
     CHAIN_ALIASES = {
         "AVAXC": ["CAVAX", "AVAXC", "C-CHAIN", "AVAX-C"],
         "AVAX": ["CAVAX", "XAVAX"],
-        "BSC": ["BSC", "BEP20", "BNB"],
+        "BSC": ["BSC", "BEP20", "BNB", "BNB SMART CHAIN"],
+        "BEP20": ["BSC", "BEP20", "BNB", "BNB SMART CHAIN"],
         "ETH": ["ETH", "ERC20", "ETHEREUM"],
         "ERC20": ["ETH", "ERC20"],
         "TRC20": ["TRC20", "TRX", "TRON"],
@@ -904,7 +905,8 @@ class BybitAdapter(BaseExchange):
         fee = Decimal("0")
         min_amount = Decimal("0")
 
-        want_network = (network or "").strip().upper()
+        want_network_raw = (network or "").strip()
+        want_network = self._normalize_chain(sym, want_network_raw) if want_network_raw else ""
 
         # Önce /v5/asset/coin/query-info endpoint'ini dene
         coin_info_data, coin_info_status = await self._get(
@@ -946,7 +948,8 @@ class BybitAdapter(BaseExchange):
                     "symbol": sym,
                     "note": "BYBIT_CHAINS_AVAILABLE",
                     "chains": [{"chain": c.get("chain"), "chainType": c.get("chainType"), "withdrawFee": c.get("withdrawFee"), "withdrawMin": c.get("withdrawMin")} for c in chains],
-                    "requested_network": want_network,
+                    "requested_network": want_network_raw,
+                    "normalized_network": want_network,
                 })
 
                 # Chain seçimi
@@ -981,6 +984,7 @@ class BybitAdapter(BaseExchange):
                     "symbol": sym,
                     "note": "CHAIN_MATCHING_DEBUG",
                     "want_network": want_network,
+                    "requested_network_raw": want_network_raw,
                     "is_evm_address": is_evm_address,
                     "possible_matches": possible_matches,
                     "available_chains": [c.get("chain") for c in chains],
@@ -1000,8 +1004,8 @@ class BybitAdapter(BaseExchange):
                 if want_network:
                     # 1. ÖNCE: Tam eşleşme ara (en yüksek öncelik)
                     for ch in valid_chains:
-                        chain_name_upper = ch.get("chain", "").upper()
-                        chain_type_upper = ch.get("chainType", "").upper()
+                        chain_name_upper = (ch.get("chain", "") or "").strip().upper()
+                        chain_type_upper = (ch.get("chainType", "") or "").strip().upper()
 
                         # want_network ile tam eşleşme
                         if chain_name_upper == want_network or chain_type_upper == want_network:
@@ -1020,8 +1024,8 @@ class BybitAdapter(BaseExchange):
                     # 2. SONRA: Tam eşleşme bulunamadıysa kısmi eşleşme dene
                     if not selected_chain:
                         for ch in valid_chains:
-                            chain_name_upper = ch.get("chain", "").upper()
-                            chain_type_upper = ch.get("chainType", "").upper()
+                            chain_name_upper = (ch.get("chain", "") or "").strip().upper()
+                            chain_type_upper = (ch.get("chainType", "") or "").strip().upper()
 
                             for alias in possible_matches:
                                 alias_upper = alias.upper()
