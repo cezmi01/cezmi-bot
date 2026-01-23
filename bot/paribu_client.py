@@ -121,11 +121,23 @@ class ParibuClient:
         response.raise_for_status()
         return response.json()
 
-    def get_orderbook(self, market: str, limit: int = 50) -> OrderBook:
-        data = self._request("GET", "orderbook", {"market": market, "limit": limit}, signed=False)
+    def get_orderbook(self, market: str, depth: int = 50) -> OrderBook:
+        data = self._request("GET", "orderbook", {"market": market, "depth": depth}, signed=False)
         bids = [(to_decimal(bid[0]), to_decimal(bid[1])) for bid in data.get("bids", [])]
         asks = [(to_decimal(ask[0]), to_decimal(ask[1])) for ask in data.get("asks", [])]
         return OrderBook(bids=bids, asks=asks)
+
+    def get_trades_history(self, market: str) -> List[Dict[str, Any]]:
+        data = self._request(
+            "GET",
+            "trades_history",
+            {"filter_market": market.lower()},
+            signed=True,
+        )
+        trades = data.get("trades")
+        if isinstance(trades, list):
+            return trades
+        return []
 
     def get_open_orders(self, market: str) -> List[ParibuOrder]:
         data = self._request("GET", "open_orders", {"market": market}, signed=True)
