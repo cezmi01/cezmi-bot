@@ -194,27 +194,33 @@ class BinanceSymbolResolver:
     def __init__(self, refresh_seconds: int = 6 * 60 * 60):
         self._lock = threading.Lock()
         self._base_map: Dict[str, Dict[str, str]] = {}
+        self._symbol_info: Dict[str, Dict[str, str]] = {}
         self._last_fetch = 0.0
         self._refresh_seconds = refresh_seconds
 
-    def _fetch_exchange_info(self) -> Dict[str, Dict[str, str]]:
+    def _fetch_exchange_info(self) -> tuple[Dict[str, Dict[str, str]], Dict[str, Dict[str, str]]]:
         response = requests.get(BINANCE_EXCHANGE_INFO_URL, timeout=10)
         response.raise_for_status()
         payload = response.json()
         mapping: Dict[str, Dict[str, str]] = {}
-        for symbol_info in payload.get("symbols", []):
-            if symbol_info.get("status") != "TRADING":
+        symbol_lookup: Dict[str, Dict[str, str]] = {}
+        for info in payload.get("symbols", []):
+            if info.get("status") != "TRADING":
                 continue
-            if symbol_info.get("isSpotTradingAllowed") is False:
+            if info.get("isSpotTradingAllowed") is False:
                 continue
-            base = symbol_info.get("baseAsset")
-            quote = symbol_info.get("quoteAsset")
-            symbol = symbol_info.get("symbol")
+            base = info.get("baseAsset")
+            quote = info.get("quoteAsset")
+            symbol = info.get("symbol")
             if not base or not quote or not symbol:
                 continue
-            base_map = mapping.setdefault(base.upper(), {})
-            base_map[quote.upper()] = symbol.upper()
-        return mapping
+            base_upper = base.upper()
+            quote_upper = quote.upper()
+            symbol_upper = symbol.upper()
+            base_map = mapping.setdefault(base_upper, {})
+            base_map[quote_upper] = symbol_upper
+            symbol_lookup[symbol_upper] = {"base": base_upper, "quote": quote_upper}
+        return mapping, symbol_lookup
 
     def _ensure_loaded(self) -> None:
         now = time.time()
@@ -222,9 +228,10 @@ class BinanceSymbolResolver:
             needs_refresh = not self._base_map or (now - self._last_fetch) > self._refresh_seconds
         if not needs_refresh:
             return
-        mapping = self._fetch_exchange_info()
+        mapping, symbol_info = self._fetch_exchange_info()
         with self._lock:
             self._base_map = mapping
+            self._symbol_info = symbol_info
             self._last_fetch = now
 
     def resolve(self, base_asset: str, preferred_quotes: Optional[List[str]] = None) -> Optional[str]:
@@ -242,6 +249,13 @@ class BinanceSymbolResolver:
         if quotes:
             return next(iter(quotes.values()))
         return None
+
+    def get_symbol_info(self, symbol: str) -> Optional[Dict[str, str]]:
+        if not symbol:
+            return None
+        self._ensure_loaded()
+        with self._lock:
+            return self._symbol_info.get(symbol.upper())
 
 
 def _find_value(data: Dict[str, Any], keys: List[str]) -> Optional[Any]:
@@ -380,6 +394,8 @@ class BinancePriceWorker(QtCore.QThread):
         self._market: Optional[str] = None
         self._symbol: Optional[str] = None
         self._resolver = BinanceSymbolResolver()
+        self._usdt_try_price: Optional[float] = None
+        self._usdt_try_ts: float = 0.0
         self._stop = threading.Event()
 
     def set_market(self, market: Optional[str]) -> None:
@@ -408,16 +424,31 @@ class BinancePriceWorker(QtCore.QThread):
             if symbol:
                 try:
                     price = fetch_binance_price(symbol)
-                    self.price_ready.emit(symbol, price)
+                    price_tl = price
+                    info = self._resolver.get_symbol_info(symbol) or {}
+                    quote = info.get("quote")
+                    if quote == "USDT":
+                        price_tl = price * self._get_usdt_try_price()
+                    self.price_ready.emit(symbol, price_tl)
                 except Exception as exc:
                     self.price_error.emit(str(exc))
             self._stop.wait(self._poll_interval)
+
+    def _get_usdt_try_price(self) -> float:
+        now = time.time()
+        if self._usdt_try_price is not None and (now - self._usdt_try_ts) < 5:
+            return self._usdt_try_price
+        price = fetch_binance_price("USDTTRY")
+        self._usdt_try_price = price
+        self._usdt_try_ts = now
+        return price
 
 
 class OrderSenderThread(threading.Thread):
     def __init__(
         self,
         client_getter: Callable[[], Optional[ParibuClient]],
+        column_index: int,
         market: str,
         side: str,
         price: float,
@@ -431,6 +462,7 @@ class OrderSenderThread(threading.Thread):
     ):
         super().__init__(daemon=True)
         self.client_getter = client_getter
+        self.column_index = column_index
         self.market = market
         self.side = side
         self.price = price
@@ -445,6 +477,7 @@ class OrderSenderThread(threading.Thread):
     def run(self) -> None:
         try:
             count = 0
+            consecutive_failures = 0
             while not self.stop_event.is_set():
                 if self.repeat > 0 and count >= self.repeat:
                     break
@@ -462,7 +495,18 @@ class OrderSenderThread(threading.Thread):
                         price=self.price,
                     )
                 except Exception as exc:
-                    self.on_error(str(exc))
+                    message = str(exc)
+                    lowered = message.lower()
+                    if "429" in lowered or "too many" in lowered or "rate" in lowered:
+                        consecutive_failures += 1
+                        if consecutive_failures >= 5:
+                            self.on_error(f"Sutun {self.column_index}: Rate limit hatasi.")
+                            break
+                        delay_ms = max(self.interval_ms, 200)
+                        if self.stop_event.wait(delay_ms / 1000.0):
+                            break
+                        continue
+                    self.on_error(f"Sutun {self.column_index}: {message}")
                     break
 
                 order_id = None
@@ -472,7 +516,7 @@ class OrderSenderThread(threading.Thread):
                         order_id = payload["data"].get("id") or payload["data"].get("uid")
 
                 if not order_id:
-                    self.on_error("Paribu order id okunamadi.")
+                    self.on_error(f"Sutun {self.column_index}: Paribu order id okunamadi.")
                     break
 
                 tracked = TrackedOrder(
@@ -484,6 +528,7 @@ class OrderSenderThread(threading.Thread):
                     created_at=time.time(),
                 )
                 self.on_order_created(tracked)
+                consecutive_failures = 0
                 count += 1
 
                 if self.interval_ms > 0:
@@ -732,7 +777,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.status_message.emit("Zaten calisiyor. Stop ile durdurun.")
             return
 
-        market = self.market_input.text().strip()
+        market = self.market_input.text().strip().lower()
         if not market:
             self.status_message.emit("Market giriniz.")
             return
@@ -755,6 +800,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             has_any = True
             self._start_sender(
+                column_index=idx + 1,
                 market=market,
                 side=side,
                 price=price,
@@ -772,6 +818,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _start_sender(
         self,
+        column_index: int,
         market: str,
         side: str,
         price: float,
@@ -797,6 +844,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         sender = OrderSenderThread(
             client_getter=self._get_paribu_client,
+            column_index=column_index,
             market=market,
             side=side,
             price=price,
@@ -830,7 +878,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.binance_symbol_label.setText("Binance Sembol: Bulunamadi")
 
     def _update_binance_price(self, symbol: str, price: float) -> None:
-        self.binance_price_label.setText(f"Binance Fiyat: {price:.6f}")
+        self.binance_price_label.setText(f"Binance Fiyat (TL): {price:.6f}")
 
     def add_log_entry(self, entry: LogEntry) -> None:
         self.log_store.add(entry)

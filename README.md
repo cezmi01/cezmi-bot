@@ -22,7 +22,8 @@ Ayarlar tabinda Paribu API key/secret girin.
 ## Binance fiyat
 Market girisi `ada_tl` ise once coin adi cikartilir (ADA) ve Binance
 `exchangeInfo` uzerinden eslestirilir. Uygun sembol bulunursa otomatik
-guncellenir (ornegin `ADAUSDT`).
+guncellenir (ornegin `ADAUSDT`). Binance fiyatı TL gosterimi icin
+USDT/TRY ile carpilir.
 
 ## Emir gonderme
 - Market, Islem (Al/Sat)
