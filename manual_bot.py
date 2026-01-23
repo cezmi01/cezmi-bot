@@ -26,6 +26,7 @@ LOG_DIR = os.path.join(BASE_DIR, "logs")
 
 PARIBU_BASE_URL = "https://api.paribu.com"
 BINANCE_PRICE_URL = "https://api.binance.com/api/v3/ticker/price"
+BINANCE_EXCHANGE_INFO_URL = "https://api.binance.com/api/v3/exchangeInfo"
 
 LOG_RETENTION_SECONDS = 24 * 60 * 60
 BINANCE_POLL_SECONDS = 1.0
@@ -176,18 +177,24 @@ class ParibuClient:
         return response.json()
 
 
-def market_to_binance_symbol(market: str) -> Optional[str]:
+def parse_market_base(market: str) -> Optional[str]:
     cleaned = market.strip().lower()
     if not cleaned:
         return None
     if "_" in cleaned:
         base = cleaned.split("_", 1)[0]
+    elif "-" in cleaned:
+        base = cleaned.split("-", 1)[0]
     else:
-        base = cleaned.replace("tl", "")
+        base = cleaned
+        if base.endswith("try"):
+            base = base[: -len("try")]
+        elif base.endswith("tl"):
+            base = base[: -len("tl")]
     base = base.upper()
     if not base:
         return None
-    return f"{base}USDT"
+    return base
 
 
 def fetch_binance_price(symbol: str) -> float:
@@ -195,6 +202,60 @@ def fetch_binance_price(symbol: str) -> float:
     response.raise_for_status()
     payload = response.json()
     return float(payload["price"])
+
+
+class BinanceSymbolResolver:
+    def __init__(self, refresh_seconds: int = 6 * 60 * 60):
+        self._lock = threading.Lock()
+        self._base_map: Dict[str, Dict[str, str]] = {}
+        self._last_fetch = 0.0
+        self._refresh_seconds = refresh_seconds
+
+    def _fetch_exchange_info(self) -> Dict[str, Dict[str, str]]:
+        response = requests.get(BINANCE_EXCHANGE_INFO_URL, timeout=10)
+        response.raise_for_status()
+        payload = response.json()
+        mapping: Dict[str, Dict[str, str]] = {}
+        for symbol_info in payload.get("symbols", []):
+            if symbol_info.get("status") != "TRADING":
+                continue
+            if symbol_info.get("isSpotTradingAllowed") is False:
+                continue
+            base = symbol_info.get("baseAsset")
+            quote = symbol_info.get("quoteAsset")
+            symbol = symbol_info.get("symbol")
+            if not base or not quote or not symbol:
+                continue
+            base_map = mapping.setdefault(base.upper(), {})
+            base_map[quote.upper()] = symbol.upper()
+        return mapping
+
+    def _ensure_loaded(self) -> None:
+        now = time.time()
+        with self._lock:
+            needs_refresh = not self._base_map or (now - self._last_fetch) > self._refresh_seconds
+        if not needs_refresh:
+            return
+        mapping = self._fetch_exchange_info()
+        with self._lock:
+            self._base_map = mapping
+            self._last_fetch = now
+
+    def resolve(self, base_asset: str, preferred_quotes: Optional[List[str]] = None) -> Optional[str]:
+        if not base_asset:
+            return None
+        self._ensure_loaded()
+        preferred = preferred_quotes or ["USDT", "TRY", "USDC", "BUSD", "BTC", "ETH"]
+        base = base_asset.upper()
+        with self._lock:
+            quotes = self._base_map.get(base, {})
+        for quote in preferred:
+            symbol = quotes.get(quote)
+            if symbol:
+                return symbol
+        if quotes:
+            return next(iter(quotes.values()))
+        return None
 
 
 def _find_value(data: Dict[str, Any], keys: List[str]) -> Optional[Any]:
@@ -324,23 +385,40 @@ class OrderMonitorThread(QtCore.QThread):
 
 class BinancePriceWorker(QtCore.QThread):
     price_ready = QtCore.Signal(str, float)
+    symbol_ready = QtCore.Signal(str)
     price_error = QtCore.Signal(str)
 
     def __init__(self, poll_interval: float = BINANCE_POLL_SECONDS):
         super().__init__()
         self._poll_interval = poll_interval
+        self._market: Optional[str] = None
         self._symbol: Optional[str] = None
+        self._resolver = BinanceSymbolResolver()
         self._stop = threading.Event()
 
-    def set_symbol(self, symbol: Optional[str]) -> None:
-        self._symbol = symbol
+    def set_market(self, market: Optional[str]) -> None:
+        self._market = market
+        self._symbol = None
 
     def stop(self) -> None:
         self._stop.set()
 
     def run(self) -> None:
         while not self._stop.is_set():
+            market = self._market or ""
+            base = parse_market_base(market)
             symbol = self._symbol
+            if base and symbol is None:
+                try:
+                    resolved = self._resolver.resolve(base)
+                except Exception as exc:
+                    self.price_error.emit(str(exc))
+                    resolved = None
+                if resolved != symbol:
+                    symbol = resolved
+                    self._symbol = resolved
+                    self.symbol_ready.emit(resolved or "")
+
             if symbol:
                 try:
                     price = fetch_binance_price(symbol)
@@ -465,6 +543,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.binance_worker = BinancePriceWorker()
         self.binance_worker.price_ready.connect(self._update_binance_price)
+        self.binance_worker.symbol_ready.connect(self._update_binance_symbol_label)
         self.binance_worker.price_error.connect(self._set_status)
         self.binance_worker.start()
 
@@ -751,12 +830,18 @@ class MainWindow(QtWidgets.QMainWindow):
             self.status_message.emit("Stop istendi. Yeni emir gonderilmeyecek.")
 
     def _update_binance_symbol(self) -> None:
-        symbol = market_to_binance_symbol(self.market_input.text())
+        base = parse_market_base(self.market_input.text())
+        if base:
+            self.binance_symbol_label.setText(f"Binance Sembol: {base}")
+        else:
+            self.binance_symbol_label.setText("Binance Sembol: -")
+        self.binance_worker.set_market(self.market_input.text())
+
+    def _update_binance_symbol_label(self, symbol: str) -> None:
         if symbol:
             self.binance_symbol_label.setText(f"Binance Sembol: {symbol}")
         else:
-            self.binance_symbol_label.setText("Binance Sembol: -")
-        self.binance_worker.set_symbol(symbol)
+            self.binance_symbol_label.setText("Binance Sembol: Bulunamadi")
 
     def _update_binance_price(self, symbol: str, price: float) -> None:
         self.binance_price_label.setText(f"Binance Fiyat: {price:.6f}")

@@ -24,7 +24,9 @@ Alternatif:
 - PARIBU_API_SECRET
 
 ## Binance fiyat
-Market girisi `ada_tl` ise Binance sembol otomatik `ADAUSDT` olur.
+Market girisi `ada_tl` ise once coin adi cikartilir (ADA) ve Binance
+`exchangeInfo` uzerinden eslestirilir. Uygun sembol bulunursa otomatik
+guncellenir (ornegin `ADAUSDT`).
 
 ## Emir gonderme
 - Market, Islem (Al/Sat)
