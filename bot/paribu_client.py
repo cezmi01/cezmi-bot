@@ -49,9 +49,9 @@ class ParibuClient:
     def manage_all_orders(self) -> bool:
         return self._config.manage_all_orders
 
-    def _signature(self, query: str = "", body: Optional[dict] = None) -> tuple[str, str]:
+    def _signature(self, path_with_query: str, body: Optional[dict] = None) -> tuple[str, str]:
         request_body = json.dumps(body, separators=(",", ":"), ensure_ascii=False) if body else ""
-        data_to_sign = f"{query}{request_body}"
+        data_to_sign = f"{path_with_query}{request_body}"
         signature_bytes = hmac.new(
             self._config.api_secret.encode("utf-8"),
             data_to_sign.encode("utf-8"),
@@ -90,7 +90,6 @@ class ParibuClient:
             for key in path_params:
                 params.pop(key, None)
 
-        url = f"{self._config.base_url.rstrip('/')}{path}"
         request_kwargs: Dict[str, Any] = {"headers": headers, "timeout": 10}
 
         query_params: Dict[str, Any] = {}
@@ -100,10 +99,13 @@ class ParibuClient:
         else:
             query_params = params
 
+        query_string = urlencode(query_params, doseq=True) if query_params else ""
+        path_with_query = f"{path}?{query_string}" if query_string else path
+        url = f"{self._config.base_url.rstrip('/')}{path_with_query}"
+
         raw_body = ""
         if signed and self._config.auth_type != "none":
-            query_string = urlencode(query_params, doseq=True) if query_params else ""
-            signature, raw_body = self._signature(query=query_string, body=body_params)
+            signature, raw_body = self._signature(path_with_query, body=body_params)
             if self._config.key_header:
                 headers[self._config.key_header] = self._config.api_key
             if self._config.sign_header:
@@ -115,8 +117,6 @@ class ParibuClient:
             headers.setdefault("Content-Type", "application/json")
             request_kwargs["data"] = raw_body
 
-        if query_params:
-            request_kwargs["params"] = query_params
         response = self._session.request(method, url, **request_kwargs)
         response.raise_for_status()
         return response.json()
@@ -139,8 +139,9 @@ class ParibuClient:
             return trades
         return []
 
-    def get_open_orders(self, market: str) -> List[ParibuOrder]:
-        data = self._request("GET", "open_orders", {"market": market}, signed=True)
+    def get_open_orders(self, market: Optional[str] = None) -> List[ParibuOrder]:
+        params = {"market": market} if market else {}
+        data = self._request("GET", "open_orders", params, signed=True)
         orders_raw = data.get("orders", data)
         return [self._parse_order(item) for item in orders_raw]
 

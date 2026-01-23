@@ -8,6 +8,7 @@ cross 5x short acar, satis gerceklesince hedge'i kapatir.
 
 > Not: Paribu API endpoint ve imza ayarlari ornek olarak gelmistir.
 > Kendi Paribu API dokumaniniza gore `config.json` dosyasini guncelleyin.
+> Paribu imzasi dokumana gore `path + body` ile uretilir (GET icin body yoktur).
 
 ## Ozellikler
 - Her iki tarafta 3 kademe limit emir tutma

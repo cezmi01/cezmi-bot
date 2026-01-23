@@ -16,6 +16,7 @@
       "place_order": { "path": "/order", "method": "POST", "body": "json" },
       "cancel_order": { "path": "/order/{order_id}", "method": "DELETE", "body": "params" },
       "order_status": { "path": "/order/{order_id}", "method": "GET", "body": "params" },
+      "open_orders": { "path": "/open-orders", "method": "GET", "body": "params" },
       "orderbook": { "path": "/orderbook", "method": "GET", "body": "params" },
       "trades_history": { "path": "/trades/history", "method": "GET", "body": "params" }
     }
