@@ -12,14 +12,6 @@ from typing import Any, Callable, Dict, List, Optional
 import requests
 from PySide6 import QtCore, QtWidgets
 
-try:
-    import dotenv
-
-    dotenv.load_dotenv()
-except Exception:
-    dotenv = None
-
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 LOG_DIR = os.path.join(BASE_DIR, "logs")
@@ -69,12 +61,6 @@ class ConfigStore:
             except Exception:
                 data = {}
 
-        env_key = os.getenv("PARIBU_API_KEY")
-        env_secret = os.getenv("PARIBU_API_SECRET")
-        if env_key and not data.get("paribu_api_key"):
-            data["paribu_api_key"] = env_key
-        if env_secret and not data.get("paribu_api_secret"):
-            data["paribu_api_secret"] = env_secret
         return data
 
     def save(self, data: Dict[str, str]) -> None:
@@ -640,7 +626,7 @@ class MainWindow(QtWidgets.QMainWindow):
         row_defs = [
             ("Fiyat", self.price_inputs, self._make_price_input),
             ("Miktar", self.amount_inputs, self._make_amount_input),
-            ("Tekrar (0=suresiz)", self.repeat_inputs, self._make_repeat_input),
+            ("Tekrar", self.repeat_inputs, self._make_repeat_input),
             ("Aralik (ms)", self.interval_inputs, self._make_interval_input),
         ]
 
@@ -708,7 +694,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _make_repeat_input(self) -> QtWidgets.QSpinBox:
         box = QtWidgets.QSpinBox()
-        box.setRange(0, 1_000_000_000)
+        box.setRange(1, 10)
         box.setValue(1)
         return box
 

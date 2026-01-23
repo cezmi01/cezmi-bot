@@ -19,10 +19,6 @@ python3 manual_bot.py
 ## Ayarlar
 Ayarlar tabinda Paribu API key/secret girin.
 
-Alternatif:
-- PARIBU_API_KEY
-- PARIBU_API_SECRET
-
 ## Binance fiyat
 Market girisi `ada_tl` ise once coin adi cikartilir (ADA) ve Binance
 `exchangeInfo` uzerinden eslestirilir. Uygun sembol bulunursa otomatik
@@ -31,7 +27,7 @@ guncellenir (ornegin `ADAUSDT`).
 ## Emir gonderme
 - Market, Islem (Al/Sat)
 - 6 sutun: Fiyat / Miktar / Tekrar / Aralik (ms)
-- Tekrar: `0 = suresiz`, `>0 = tekrar sayisi`
+- Tekrar: 1 - 10 arasi secilir
 - Stop: yeni emir gonderimini durdurur, acik emirleri iptal etmez.
 
 ## Manuel Satis Listesi
