@@ -23,6 +23,7 @@ BINANCE_EXCHANGE_INFO_URL = "https://api.binance.com/api/v3/exchangeInfo"
 LOG_RETENTION_SECONDS = 24 * 60 * 60
 BINANCE_POLL_SECONDS = 1.0
 ORDER_POLL_SECONDS = 1.0
+ORDER_COLUMNS = 1
 
 
 @dataclass
@@ -658,10 +659,10 @@ class MainWindow(QtWidgets.QMainWindow):
         return widget
 
     def _build_order_grid(self) -> QtWidgets.QGroupBox:
-        group = QtWidgets.QGroupBox("Emirler (6 Sutun)")
+        group = QtWidgets.QGroupBox("Emirler")
         grid = QtWidgets.QGridLayout(group)
 
-        headers = ["1", "2", "3", "4", "5", "6"]
+        headers = [str(idx + 1) for idx in range(ORDER_COLUMNS)]
         grid.addWidget(QtWidgets.QLabel(""), 0, 0)
         for idx, name in enumerate(headers, start=1):
             label = QtWidgets.QLabel(name)
@@ -677,7 +678,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         for row_index, (label, bucket, factory) in enumerate(row_defs, start=1):
             grid.addWidget(QtWidgets.QLabel(label), row_index, 0)
-            for col in range(6):
+            for col in range(ORDER_COLUMNS):
                 widget = factory()
                 bucket.append(widget)
                 grid.addWidget(widget, row_index, col + 1)
@@ -789,7 +790,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sending = True
 
         has_any = False
-        for idx in range(6):
+        for idx in range(ORDER_COLUMNS):
             price = float(self.price_inputs[idx].value())
             amount = float(self.amount_inputs[idx].value())
             repeat = int(self.repeat_inputs[idx].value())

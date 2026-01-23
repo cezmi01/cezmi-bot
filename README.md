@@ -27,7 +27,7 @@ USDT/TRY ile carpilir.
 
 ## Emir gonderme
 - Market, Islem (Al/Sat)
-- 6 sutun: Fiyat / Miktar / Tekrar / Aralik (ms)
+- Tek sutun: Fiyat / Miktar / Tekrar / Aralik (ms)
 - Tekrar: 1 - 10 arasi secilir
 - Stop: yeni emir gonderimini durdurur, acik emirleri iptal etmez.
 
