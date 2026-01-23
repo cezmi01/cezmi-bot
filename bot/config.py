@@ -20,6 +20,7 @@ class ParibuConfig:
     key_header: str
     sign_header: str
     signature_param: str | None
+    signature_base: str
     timestamp_param: str | None
     recv_window_ms: int
     client_order_id_prefix: str
@@ -86,6 +87,7 @@ def load_config(path: str) -> AppConfig:
         key_header=paribu_raw.get("key_header", "Authorization"),
         sign_header=paribu_raw.get("sign_header", "X-Signature"),
         signature_param=paribu_raw.get("signature_param"),
+        signature_base=paribu_raw.get("signature_base", "query"),
         timestamp_param=paribu_raw.get("timestamp_param"),
         recv_window_ms=int(paribu_raw.get("recv_window_ms", 0)),
         client_order_id_prefix=paribu_raw.get("client_order_id_prefix", "CBOT"),

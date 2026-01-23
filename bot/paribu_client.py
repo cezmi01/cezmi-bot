@@ -49,9 +49,9 @@ class ParibuClient:
     def manage_all_orders(self) -> bool:
         return self._config.manage_all_orders
 
-    def _signature(self, path_with_query: str, body: Optional[dict] = None) -> tuple[str, str]:
+    def _signature(self, base: str, body: Optional[dict] = None) -> tuple[str, str]:
         request_body = json.dumps(body, separators=(",", ":"), ensure_ascii=False) if body else ""
-        data_to_sign = f"{path_with_query}{request_body}"
+        data_to_sign = f"{base}{request_body}"
         signature_bytes = hmac.new(
             self._config.api_secret.encode("utf-8"),
             data_to_sign.encode("utf-8"),
@@ -105,7 +105,10 @@ class ParibuClient:
 
         raw_body = ""
         if signed and self._config.auth_type != "none":
-            signature, raw_body = self._signature(path_with_query, body=body_params)
+            signature_base = path_with_query
+            if self._config.signature_base == "query":
+                signature_base = query_string
+            signature, raw_body = self._signature(signature_base, body=body_params)
             if self._config.key_header:
                 headers[self._config.key_header] = self._config.api_key
             if self._config.sign_header:
@@ -155,7 +158,7 @@ class ParibuClient:
     ) -> ParibuOrder:
         price_dec = to_decimal(price)
         qty_dec = to_decimal(quantity)
-        total_value = int(price_dec * qty_dec)
+        total_value = float(price_dec * qty_dec)
         payload = {
             "market": market.lower(),
             "trade": side.lower(),
@@ -204,13 +207,24 @@ class ParibuClient:
             or raw.get("original_amount")
             or "0"
         )
-        remaining = raw.get("remaining_amount") or raw.get("remainingAmount") or raw.get("leftAmount")
+        remaining = (
+            raw.get("remaining")
+            or raw.get("remaining_amount")
+            or raw.get("remainingAmount")
+            or raw.get("leftAmount")
+        )
         if remaining is not None:
             remaining_qty = to_decimal(remaining)
             filled_qty = quantity - remaining_qty
         else:
             filled_qty = to_decimal(
-                raw.get("executedQty") or raw.get("filledQty") or raw.get("filled_quantity") or "0"
+                raw.get("executed")
+                or raw.get("filled")
+                or raw.get("traded")
+                or raw.get("executedQty")
+                or raw.get("filledQty")
+                or raw.get("filled_quantity")
+                or "0"
             )
         status = str(raw.get("status", raw.get("state", "")))
 
