@@ -1,36 +1,34 @@
 {
   "paribu": {
     "base_url": "https://api.paribu.com",
-    "api_key": "env:PARIBU_API_KEY",
-    "api_secret": "env:PARIBU_API_SECRET",
-    "auth_type": "hmac_sha256",
-    "key_header": "X-API-KEY",
-    "sign_header": "X-API-SIGN",
+    "api_key": "",
+    "api_secret": "",
+    "auth_type": "hmac_sha256_base64",
+    "key_header": "Authorization",
+    "sign_header": "X-Signature",
     "signature_param": null,
-    "timestamp_param": "timestamp",
-    "recv_window_ms": 5000,
+    "timestamp_param": null,
+    "recv_window_ms": 0,
     "client_order_id_prefix": "CBOT",
-    "post_style": "params",
+    "post_style": "json",
     "manage_all_orders": false,
     "endpoints": {
-      "orderbook": { "path": "/api/v1/orderbook", "method": "GET" },
-      "open_orders": { "path": "/api/v1/openOrders", "method": "GET" },
-      "place_order": { "path": "/api/v1/order", "method": "POST", "body": "json" },
-      "cancel_order": { "path": "/api/v1/order", "method": "DELETE" },
-      "order_status": { "path": "/api/v1/order", "method": "GET" }
+      "place_order": { "path": "/order", "method": "POST", "body": "json" },
+      "cancel_order": { "path": "/order/{order_id}", "method": "DELETE" },
+      "order_status": { "path": "/order/{order_id}", "method": "GET" }
     }
   },
   "binance": {
     "futures_base_url": "https://fapi.binance.com",
     "spot_base_url": "https://api.binance.com",
-    "api_key": "env:BINANCE_API_KEY",
-    "api_secret": "env:BINANCE_API_SECRET",
+    "api_key": "",
+    "api_secret": "",
     "recv_window_ms": 5000
   },
   "pairs": [
     {
       "name": "LINEA/TRY",
-      "paribu_symbol": "LINEA_TL",
+      "paribu_symbol": "linea_tl",
       "binance_futures_symbol": "LINEAUSDT",
       "tick_size": "0.01",
       "qty_step": "0.1",

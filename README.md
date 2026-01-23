@@ -24,14 +24,6 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-`.env` olusturun:
-```bash
-PARIBU_API_KEY=...
-PARIBU_API_SECRET=...
-BINANCE_API_KEY=...
-BINANCE_API_SECRET=...
-```
-
 `config.json` dosyasinda Paribu endpointlerini ve parite
 eslesmelerini guncelleyin. `clientOrderId` desteklenmiyorsa
 `manage_all_orders=true` yapabilirsiniz (bot tum acik emirleri yonetir).
@@ -41,7 +33,7 @@ Ornek:
   "pairs": [
     {
       "name": "LINEA/TRY",
-      "paribu_symbol": "LINEA_TL",
+      "paribu_symbol": "linea_tl",
       "binance_futures_symbol": "LINEAUSDT",
       "tick_size": "0.01",
       "qty_step": "0.1",
@@ -57,6 +49,7 @@ python app.py
 ```
 
 GUI'de:
+- Ayarlar sekmesinden Paribu/Binance API key ve secret girin (settings.json'a kaydedilir)
 - Parite secin
 - Emir miktarini girin (coin bazinda)
 - Kar yuzdesi (varsayilan 1)
@@ -68,6 +61,8 @@ GUI'de:
 ```bash
 python app.py --headless --pair "LINEA/TRY" --order-qty 100 --profit-pct 1 --poll-interval 2
 ```
+Headless modda API anahtarlari `settings.json` dosyasindan okunur
+(`--settings` ile farkli dosya verebilirsiniz).
 
 ## Windows EXE olusturma
 EXE sadece Windows'ta build edilmelidir:

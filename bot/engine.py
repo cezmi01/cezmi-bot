@@ -9,7 +9,7 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from .binance_client import BinanceClient
 from .config import PairConfig
-from .paribu_client import ParibuClient, ParibuOrder
+from .paribu_client import MissingEndpointError, ParibuClient, ParibuOrder
 from .utils import clamp_min, format_decimal, round_down, round_up, to_decimal
 
 
@@ -58,6 +58,7 @@ class BotEngine:
         self._last_position_sync = 0.0
         self._client_id_counter = 0
         self._warned_no_client_id = False
+        self._warned_no_open_orders = False
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -109,8 +110,10 @@ class BotEngine:
         return buy_prices, sell_prices
 
     def _sync_orders(self, buy_prices: Iterable[Decimal], sell_prices: Iterable[Decimal]) -> None:
-        open_orders = self._paribu.get_open_orders(self._pair.paribu_symbol)
+        open_orders = self._fetch_open_orders()
         managed_orders = self._filter_managed_orders(open_orders)
+        if not managed_orders and self._tracked_orders:
+            managed_orders = self._refresh_tracked_orders()
         self._update_tracked_orders(managed_orders)
         self._handle_fill_updates(managed_orders)
 
@@ -133,6 +136,33 @@ class BotEngine:
         for order in managed_orders:
             if order.order_id not in keep_ids:
                 self._cancel_order(order)
+
+    def _fetch_open_orders(self) -> List[ParibuOrder]:
+        try:
+            return self._paribu.get_open_orders(self._pair.paribu_symbol)
+        except MissingEndpointError:
+            if not self._warned_no_open_orders:
+                self._warned_no_open_orders = True
+                self._log("Open orders endpoint missing; using tracked orders only.", level="warning")
+        except Exception as exc:
+            self._log(f"Open orders fetch failed; using tracked orders: {exc}", level="warning")
+        return self._refresh_tracked_orders()
+
+    def _refresh_tracked_orders(self) -> List[ParibuOrder]:
+        open_orders: List[ParibuOrder] = []
+        closed_states = {"filled", "done", "closed", "canceled", "cancelled"}
+        for order_id in list(self._tracked_orders.keys()):
+            try:
+                order = self._paribu.get_order(self._pair.paribu_symbol, order_id)
+            except Exception as exc:
+                self._log(f"Order status fetch failed {order_id}: {exc}", level="warning")
+                continue
+            status = order.status.lower()
+            if status in closed_states:
+                self._tracked_orders.pop(order_id, None)
+                continue
+            open_orders.append(order)
+        return open_orders
 
     def _build_desired_orders(self, buy_prices: Iterable[Decimal], sell_prices: Iterable[Decimal]) -> List[Tuple[str, Decimal]]:
         desired: List[Tuple[str, Decimal]] = []
