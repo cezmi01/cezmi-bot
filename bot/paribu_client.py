@@ -238,6 +238,9 @@ class ParibuClient:
                 or "0"
             )
         status = str(raw.get("status", raw.get("state", "")))
+        status = status.strip().lower()
+        if status == "close":
+            status = "closed"
 
         return ParibuOrder(
             order_id=str(order_id),
