@@ -59,6 +59,10 @@ class BotEngine:
         self._client_id_counter = 0
         self._warned_no_client_id = False
         self._warned_no_open_orders = False
+        self._trade_seen: set[str] = set()
+        self._last_trade_seen: Optional[str] = None
+        self._trade_sync_ok = False
+        self._order_trade_filled: Dict[str, Decimal] = {}
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -88,6 +92,7 @@ class BotEngine:
 
     def _tick(self) -> None:
         self._sync_position_if_needed()
+        self._sync_trades_history()
         try:
             binance_price_tl = self._get_binance_tl_price()
         except Exception as exc:
@@ -191,6 +196,7 @@ class BotEngine:
             status = order.status.lower()
             if status in closed_states:
                 self._tracked_orders.pop(order_id, None)
+                self._order_trade_filled.pop(order_id, None)
                 continue
             open_orders.append(order)
         return open_orders
@@ -266,7 +272,8 @@ class BotEngine:
             if tracked:
                 tracked.price = order.price
                 tracked.quantity = order.quantity
-                tracked.filled_qty = order.filled_qty
+                if order.filled_qty > tracked.filled_qty:
+                    tracked.filled_qty = order.filled_qty
                 tracked.client_order_id = order.client_order_id
             else:
                 self._tracked_orders[order.order_id] = TrackedOrder(
@@ -283,27 +290,96 @@ class BotEngine:
         for order_id, tracked in list(self._tracked_orders.items()):
             if order_id in open_by_id:
                 current = open_by_id[order_id]
-                if current.filled_qty > tracked.filled_qty:
+                if current.filled_qty > tracked.filled_qty and not self._trade_sync_ok:
                     self._apply_fill_delta(tracked, current.filled_qty)
                     tracked.filled_qty = current.filled_qty
                 else:
                     # Some Paribu open-orders responses don't include partial fills.
-                    self._refresh_order_status(tracked)
+                    self._refresh_order_status(tracked, apply_hedge=not self._trade_sync_ok)
                 continue
 
-            self._refresh_order_status(tracked)
+            self._refresh_order_status(tracked, apply_hedge=not self._trade_sync_ok)
 
-    def _refresh_order_status(self, tracked: TrackedOrder) -> None:
+    def _refresh_order_status(self, tracked: TrackedOrder, apply_hedge: bool = True) -> None:
         try:
             final = self._paribu.get_order(self._pair.paribu_symbol, tracked.order_id)
         except Exception as exc:
             self._log(f"Order status fetch failed {tracked.order_id}: {exc}", level="warning")
             return
 
-        self._apply_fill_delta(tracked, final.filled_qty)
-        tracked.filled_qty = final.filled_qty
+        if apply_hedge and final.filled_qty > tracked.filled_qty:
+            self._apply_fill_delta(tracked, final.filled_qty)
+        if final.filled_qty > tracked.filled_qty:
+            tracked.filled_qty = final.filled_qty
         if final.status.lower() in ("filled", "canceled", "cancelled", "closed"):
             self._tracked_orders.pop(tracked.order_id, None)
+            self._order_trade_filled.pop(tracked.order_id, None)
+
+    def _sync_trades_history(self) -> None:
+        self._trade_sync_ok = False
+        try:
+            trades = self._paribu.get_trades_history(self._pair.paribu_symbol)
+        except MissingEndpointError:
+            return
+        except Exception as exc:
+            self._log(f"Trades history fetch failed: {exc}", level="warning")
+            return
+
+        self._trade_sync_ok = True
+        if not trades:
+            return
+
+        trades.sort(key=lambda t: t.get("createdAt") or t.get("created_at") or "")
+        if self._last_trade_seen is None:
+            self._last_trade_seen = trades[-1].get("createdAt") or trades[-1].get("created_at")
+            self._log("Trades history baseline set.", level="debug")
+            return
+
+        max_seen = self._last_trade_seen
+        for trade in trades:
+            created_at = trade.get("createdAt") or trade.get("created_at")
+            if not created_at:
+                continue
+            if self._last_trade_seen and created_at < self._last_trade_seen:
+                continue
+            trade_key = (
+                f"{created_at}|{trade.get('orderId','')}|{trade.get('direction','')}"
+                f"|{trade.get('amount','')}|{trade.get('price','')}"
+            )
+            if trade_key in self._trade_seen:
+                continue
+            self._trade_seen.add(trade_key)
+            if len(self._trade_seen) > 5000:
+                self._trade_seen.clear()
+
+            amount = to_decimal(trade.get("amount") or trade.get("qty") or "0")
+            if amount <= 0:
+                continue
+            direction = str(trade.get("direction", "")).upper()
+            if direction == "BUY":
+                side = "buy"
+            elif direction == "SELL":
+                side = "sell"
+            else:
+                continue
+
+            order_id = trade.get("orderId")
+            if order_id:
+                prev = self._order_trade_filled.get(order_id, Decimal("0"))
+                new_total = prev + amount
+                self._order_trade_filled[order_id] = new_total
+                tracked = self._tracked_orders.get(order_id)
+                if tracked and new_total > tracked.filled_qty:
+                    self._apply_fill_delta(tracked, new_total)
+                    tracked.filled_qty = new_total
+                elif not tracked:
+                    self._hedge_fill(side, amount)
+            else:
+                self._hedge_fill(side, amount)
+
+            if max_seen is None or created_at > max_seen:
+                max_seen = created_at
+        self._last_trade_seen = max_seen
 
     def _apply_fill_delta(self, tracked: TrackedOrder, new_filled_qty: Decimal) -> None:
         delta = new_filled_qty - tracked.filled_qty
