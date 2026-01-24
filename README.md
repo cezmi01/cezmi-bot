@@ -53,7 +53,7 @@ python app.py
 
 GUI'de:
 - Ayarlar sekmesinden Paribu/Binance API key ve secret girin (settings.json'a kaydedilir)
-- Parite secin
+- Pariteyi yazin (ornek: LINEA/TRY veya linea_tl). Binance Futures sembolu otomatik eslesir.
 - Emir miktarini girin (coin bazinda)
 - Kar yuzdesi (varsayilan 1)
 - Polling suresi
@@ -66,6 +66,12 @@ python app.py --headless --pair "LINEA/TRY" --order-qty 100 --profit-pct 1 --pol
 ```
 Headless modda API anahtarlari `settings.json` dosyasindan okunur
 (`--settings` ile farkli dosya verebilirsiniz).
+
+## Alanlar (kisa aciklama)
+- **Polling (sn):** Emirleri ve fiyatlari kac saniyede bir yeniledigini belirler.
+- **Leverage:** Binance Futures kaldirac ayari (varsayilan 5).
+- **Pozisyon senkron (sn):** Botun Binance pozisyonunu kac saniyede bir
+  yeniden okuyacagini belirler; manuel islemlerde kayma olmamasi icin.
 
 ## Windows EXE olusturma
 EXE sadece Windows'ta build edilmelidir:

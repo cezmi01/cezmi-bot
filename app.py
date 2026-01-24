@@ -19,7 +19,7 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 from bot.binance_client import BinanceClient
-from bot.config import ConfigError, load_config
+from bot.config import ConfigError, PairConfig, load_config
 from bot.engine import BotEngine, EngineSettings
 from bot.paribu_client import ParibuClient
 
@@ -64,6 +64,37 @@ class SettingsStore:
             json.dump(data, handle, indent=2, sort_keys=True, ensure_ascii=True)
 
 
+def _normalize_pair_input(raw: str) -> tuple[str, str, str, str]:
+    cleaned = raw.strip()
+    if not cleaned:
+        raise ConfigError("Parite bos olamaz.")
+    lowered = cleaned.lower()
+    if "/" in lowered:
+        base, quote = lowered.split("/", 1)
+    elif "_" in lowered:
+        base, quote = lowered.split("_", 1)
+    elif "-" in lowered:
+        base, quote = lowered.split("-", 1)
+    else:
+        if lowered.endswith("try"):
+            base, quote = lowered[:-3], "try"
+        elif lowered.endswith("tl"):
+            base, quote = lowered[:-2], "tl"
+        else:
+            base, quote = lowered, "try"
+
+    base = base.strip()
+    quote = quote.strip()
+    if not base:
+        raise ConfigError("Parite girisi gecersiz.")
+
+    quote = "tl" if quote in ("try", "tl") else quote
+    paribu_market = f"{base}_{quote}"
+    display_quote = "TRY" if quote == "tl" else quote.upper()
+    display_name = f"{base.upper()}/{display_quote}"
+    return display_name, paribu_market, base.upper(), quote
+
+
 def _resolve_api_keys(config, api_settings: Dict[str, str]) -> tuple[str, str, str, str]:
     paribu_key = (api_settings.get("paribu_api_key") or config.paribu.api_key or "").strip()
     paribu_secret = (api_settings.get("paribu_api_secret") or config.paribu.api_secret or "").strip()
@@ -80,6 +111,50 @@ def _resolve_api_keys(config, api_settings: Dict[str, str]) -> tuple[str, str, s
     return paribu_key, paribu_secret, binance_key, binance_secret
 
 
+def _infer_tick_size(paribu: ParibuClient, market: str) -> Decimal:
+    try:
+        orderbook = paribu.get_orderbook(market, depth=20)
+        prices = sorted({price for price, _ in orderbook.bids + orderbook.asks})
+        diffs = [prices[i + 1] - prices[i] for i in range(len(prices) - 1) if prices[i + 1] > prices[i]]
+        if diffs:
+            return min(diffs)
+    except Exception:
+        pass
+    return Decimal("0.01")
+
+
+def _resolve_pair_config(
+    config,
+    pair_input: str,
+    paribu: ParibuClient,
+    binance: BinanceClient,
+    logger: logging.Logger,
+) -> PairConfig:
+    normalized = pair_input.strip().lower()
+    for pair in config.pairs:
+        if normalized in (
+            pair.name.lower(),
+            pair.paribu_symbol.lower(),
+            pair.binance_futures_symbol.lower(),
+        ):
+            return pair
+
+    display, paribu_market, base_asset, quote = _normalize_pair_input(pair_input)
+    binance_symbol = binance.resolve_futures_symbol(base_asset)
+    if not binance_symbol:
+        raise ConfigError(f"Binance Futures eslesmesi bulunamadi: {base_asset}")
+    tick_size = _infer_tick_size(paribu, paribu_market)
+    logger.info("Parite otomatik: %s -> %s (Binance %s)", display, paribu_market, binance_symbol)
+    return PairConfig(
+        name=display,
+        paribu_symbol=paribu_market,
+        binance_futures_symbol=binance_symbol,
+        tick_size=tick_size,
+        qty_step=Decimal("0.00000001"),
+        min_qty=Decimal("0"),
+    )
+
+
 def build_bot(
     config_path: str,
     pair_name: str,
@@ -89,9 +164,6 @@ def build_bot(
     api_settings: Dict[str, str],
 ):
     config = load_config(config_path)
-    pair = next((p for p in config.pairs if p.name == pair_name), None)
-    if not pair:
-        raise ConfigError(f"Pair not found: {pair_name}")
     paribu_key, paribu_secret, binance_key, binance_secret = _resolve_api_keys(
         config, api_settings
     )
@@ -105,6 +177,7 @@ def build_bot(
         binance_config.api_secret,
         binance_config.recv_window_ms,
     )
+    pair = _resolve_pair_config(config, pair_name, paribu, binance, logger)
     return BotEngine(pair, paribu, binance, settings, logger=logger, log_callback=log_cb)
 
 
@@ -147,9 +220,9 @@ class BotApp(tk.Tk):
         form.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
         form.columnconfigure(1, weight=1)
 
-        ttk.Label(form, text="Parite").grid(row=0, column=0, sticky="w")
+        ttk.Label(form, text="Parite (LINEA/TRY veya linea_tl)").grid(row=0, column=0, sticky="w")
         self.pair_var = tk.StringVar()
-        self.pair_combo = ttk.Combobox(form, textvariable=self.pair_var, state="readonly")
+        self.pair_combo = ttk.Combobox(form, textvariable=self.pair_var, state="normal")
         self.pair_combo.grid(row=0, column=1, sticky="ew")
 
         ttk.Label(form, text="Emir miktarı (coin)").grid(row=1, column=0, sticky="w")
