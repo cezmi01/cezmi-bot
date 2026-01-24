@@ -68,6 +68,9 @@ class BotEngine:
         self._balance_last_total: Optional[Decimal] = None
         self._hedge_open_remainder = Decimal("0")
         self._hedge_close_remainder = Decimal("0")
+        self._futures_multiplier = self._binance.get_futures_multiplier(
+            self._pair.binance_futures_symbol
+        )
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -100,6 +103,7 @@ class BotEngine:
         self._sync_trades_history()
         if not self._trade_sync_ok:
             self._sync_balance_hedge()
+        self._sync_short_to_balance()
         try:
             binance_price_tl = self._get_binance_tl_price()
         except Exception as exc:
@@ -163,6 +167,7 @@ class BotEngine:
         self._handle_fill_updates(managed_orders)
         if not self._trade_sync_ok:
             self._sync_balance_hedge()
+        self._sync_short_to_balance()
 
     def _fetch_open_orders(self) -> List[ParibuOrder]:
         if self._settings.dry_run:
@@ -395,26 +400,7 @@ class BotEngine:
         self._last_trade_seen = max_seen
 
     def _sync_balance_hedge(self) -> None:
-        try:
-            assets = self._paribu.get_assets()
-        except MissingEndpointError:
-            if not self._warned_no_assets:
-                self._warned_no_assets = True
-                self._log("Assets endpoint missing; balance hedge disabled.", level="warning")
-            return
-        except Exception as exc:
-            self._log(f"Assets fetch failed: {exc}", level="warning")
-            return
-
-        total = None
-        for asset in assets:
-            currency = str(asset.get("currency", "")).upper()
-            if currency == self._base_asset:
-                total_raw = asset.get("total") or asset.get("available")
-                if total_raw is not None:
-                    total = to_decimal(total_raw)
-                break
-
+        total = self._get_balance_total()
         if total is None:
             return
 
@@ -439,6 +425,52 @@ class BotEngine:
 
         self._balance_last_total = total
 
+    def _sync_short_to_balance(self) -> None:
+        total = self._get_balance_total()
+        if total is None:
+            return
+        if self._balance_last_total is None:
+            self._balance_last_total = total
+
+        target_short = total
+        current_short = self._short_qty
+        step = self._binance.get_futures_step(self._pair.binance_futures_symbol)
+        min_delta = step * self._futures_multiplier
+        if min_delta <= 0:
+            min_delta = Decimal("0.00000001")
+        delta = target_short - current_short
+        if abs(delta) < min_delta:
+            return
+
+        if delta > 0:
+            self._log(f"Balance sync open_short delta={delta}", level="debug")
+            self._hedge_fill("buy", delta)
+        else:
+            self._log(f"Balance sync close_short delta={abs(delta)}", level="debug")
+            self._hedge_fill("sell", abs(delta))
+
+    def _get_balance_total(self) -> Optional[Decimal]:
+        try:
+            assets = self._paribu.get_assets()
+        except MissingEndpointError:
+            if not self._warned_no_assets:
+                self._warned_no_assets = True
+                self._log("Assets endpoint missing; balance hedge disabled.", level="warning")
+            return None
+        except Exception as exc:
+            self._log(f"Assets fetch failed: {exc}", level="warning")
+            return None
+
+        total = None
+        for asset in assets:
+            currency = str(asset.get("currency", "")).upper()
+            if currency == self._base_asset:
+                total_raw = asset.get("total") or asset.get("available")
+                if total_raw is not None:
+                    total = to_decimal(total_raw)
+                break
+        return total
+
     def _apply_fill_delta(self, tracked: TrackedOrder, new_filled_qty: Decimal) -> None:
         delta = new_filled_qty - tracked.filled_qty
         if delta <= 0:
@@ -450,60 +482,66 @@ class BotEngine:
         qty = clamp_min(qty, Decimal("0"))
         if qty <= 0:
             return
+        if self._futures_multiplier <= 0:
+            self._log("Invalid futures multiplier.", level="warning")
+            return
 
         if side == "buy":
             binance_side = "SELL"
             reduce_only = False
             action = "open_short"
-            total_qty = qty + self._hedge_open_remainder
+            total_contract = (qty / self._futures_multiplier) + self._hedge_open_remainder
         else:
             binance_side = "BUY"
             reduce_only = True
-            total_qty = qty + self._hedge_close_remainder
+            total_contract = (qty / self._futures_multiplier) + self._hedge_close_remainder
             if self._short_qty <= 0:
                 self._log("No short position to close.", level="warning")
                 return
             action = "close_short"
 
         if action == "close_short":
-            total_qty = min(total_qty, self._short_qty)
-        hedge_qty = self._binance.adjust_futures_qty(self._pair.binance_futures_symbol, total_qty)
-        if hedge_qty <= 0:
+            total_contract = min(total_contract, self._short_qty / self._futures_multiplier)
+        hedge_contract = self._binance.adjust_futures_qty(
+            self._pair.binance_futures_symbol, total_contract
+        )
+        if hedge_contract <= 0:
             self._log(f"Hedge {action} skipped; qty below step size.", level="warning")
             return
+        hedge_coin = hedge_contract * self._futures_multiplier
 
         if self._settings.dry_run:
             if action == "open_short":
-                self._short_qty += hedge_qty
-                self._hedge_open_remainder = total_qty - hedge_qty
+                self._short_qty += hedge_coin
+                self._hedge_open_remainder = total_contract - hedge_contract
             else:
-                self._short_qty = max(self._short_qty - hedge_qty, Decimal("0"))
-                self._hedge_close_remainder = total_qty - hedge_qty
-            self._log(f"DRY RUN hedge {action} qty={hedge_qty}")
+                self._short_qty = max(self._short_qty - hedge_coin, Decimal("0"))
+                self._hedge_close_remainder = total_contract - hedge_contract
+            self._log(f"DRY RUN hedge {action} qty={hedge_contract}")
             return
 
         try:
             result = self._binance.market_order(
                 self._pair.binance_futures_symbol,
                 binance_side,
-                hedge_qty,
+                hedge_contract,
                 reduce_only=reduce_only,
             )
         except Exception as exc:
             self._log(f"Hedge {action} failed: {exc}", level="error")
             if action == "open_short":
-                self._hedge_open_remainder = total_qty
+                self._hedge_open_remainder = total_contract
             else:
-                self._hedge_close_remainder = total_qty
+                self._hedge_close_remainder = total_contract
             return
         if action == "open_short":
-            self._short_qty += hedge_qty
-            self._hedge_open_remainder = total_qty - hedge_qty
+            self._short_qty += hedge_coin
+            self._hedge_open_remainder = total_contract - hedge_contract
         else:
-            self._short_qty = max(self._short_qty - hedge_qty, Decimal("0"))
-            self._hedge_close_remainder = total_qty - hedge_qty
+            self._short_qty = max(self._short_qty - hedge_coin, Decimal("0"))
+            self._hedge_close_remainder = total_contract - hedge_contract
         self._log(
-            f"Hedge {action} side={binance_side} qty={hedge_qty} "
+            f"Hedge {action} side={binance_side} qty={hedge_contract} "
             f"status={result.status} id={result.order_id}"
         )
 
@@ -536,7 +574,7 @@ class BotEngine:
         self._last_position_sync = now
         position_amt = self._binance.get_position_qty(self._pair.binance_futures_symbol)
         if position_amt < 0:
-            self._short_qty = abs(position_amt)
+            self._short_qty = abs(position_amt) * self._futures_multiplier
         else:
             self._short_qty = Decimal("0")
 

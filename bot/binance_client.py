@@ -38,6 +38,7 @@ class BinanceClient:
         self._session.headers.update({"X-MBX-APIKEY": api_key})
         self._futures_symbol_map: Dict[tuple[str, str], str] = {}
         self._futures_symbols: list[Dict[str, Any]] = []
+        self._futures_symbol_info: Dict[str, Dict[str, Any]] = {}
         self._futures_step_map: Dict[str, Decimal] = {}
         self._futures_last_fetch = 0.0
 
@@ -115,6 +116,18 @@ class BinanceClient:
         self._ensure_futures_symbols()
         return self._futures_step_map.get(symbol.upper(), Decimal("0"))
 
+    def get_futures_multiplier(self, symbol: str) -> Decimal:
+        self._ensure_futures_symbols()
+        info = self._futures_symbol_info.get(symbol.upper(), {})
+        base = str(info.get("baseAsset", "")).upper()
+        digits = ""
+        for ch in base:
+            if ch.isdigit():
+                digits += ch
+            else:
+                break
+        return Decimal(digits) if digits else Decimal("1")
+
     def adjust_futures_qty(self, symbol: str, quantity: Decimal) -> Decimal:
         step = self.get_futures_step(symbol)
         if step <= 0:
@@ -189,6 +202,7 @@ class BinanceClient:
         data = self._request("GET", self._futures_base_url, "/fapi/v1/exchangeInfo")
         symbols = data.get("symbols", [])
         mapping: Dict[tuple[str, str], str] = {}
+        info_map: Dict[str, Dict[str, Any]] = {}
         step_map: Dict[str, Decimal] = {}
         for entry in symbols:
             if entry.get("status") != "TRADING":
@@ -198,11 +212,13 @@ class BinanceClient:
             symbol = str(entry.get("symbol", "")).upper()
             if base and quote and symbol:
                 mapping[(base, quote)] = symbol
+                info_map[symbol] = entry
                 for filt in entry.get("filters", []):
                     if filt.get("filterType") == "LOT_SIZE":
                         step_map[symbol] = to_decimal(filt.get("stepSize", "0"))
                         break
         self._futures_symbol_map = mapping
+        self._futures_symbol_info = info_map
         self._futures_step_map = step_map
         self._futures_symbols = symbols
         self._futures_last_fetch = now
