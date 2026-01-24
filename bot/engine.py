@@ -297,24 +297,24 @@ class BotEngine:
         for order_id, tracked in list(self._tracked_orders.items()):
             if order_id in open_by_id:
                 current = open_by_id[order_id]
-                if current.filled_qty > tracked.filled_qty and not self._trade_sync_ok:
+                if current.filled_qty > tracked.filled_qty:
                     self._apply_fill_delta(tracked, current.filled_qty)
                     tracked.filled_qty = current.filled_qty
                 else:
                     # Some Paribu open-orders responses don't include partial fills.
-                    self._refresh_order_status(tracked, apply_hedge=not self._trade_sync_ok)
+                    self._refresh_order_status(tracked)
                 continue
 
-            self._refresh_order_status(tracked, apply_hedge=not self._trade_sync_ok)
+            self._refresh_order_status(tracked)
 
-    def _refresh_order_status(self, tracked: TrackedOrder, apply_hedge: bool = True) -> None:
+    def _refresh_order_status(self, tracked: TrackedOrder) -> None:
         try:
             final = self._paribu.get_order(self._pair.paribu_symbol, tracked.order_id)
         except Exception as exc:
             self._log(f"Order status fetch failed {tracked.order_id}: {exc}", level="warning")
             return
 
-        if apply_hedge and final.filled_qty > tracked.filled_qty:
+        if final.filled_qty > tracked.filled_qty:
             self._apply_fill_delta(tracked, final.filled_qty)
         if final.filled_qty > tracked.filled_qty:
             tracked.filled_qty = final.filled_qty
