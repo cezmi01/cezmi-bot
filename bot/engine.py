@@ -138,6 +138,8 @@ class BotEngine:
                 self._cancel_order(order)
 
     def _fetch_open_orders(self) -> List[ParibuOrder]:
+        if self._settings.dry_run:
+            return self._dry_run_open_orders()
         try:
             return self._paribu.get_open_orders(self._pair.paribu_symbol)
         except MissingEndpointError:
@@ -147,6 +149,22 @@ class BotEngine:
         except Exception as exc:
             self._log(f"Open orders fetch failed; using tracked orders: {exc}", level="warning")
         return self._refresh_tracked_orders()
+
+    def _dry_run_open_orders(self) -> List[ParibuOrder]:
+        orders: List[ParibuOrder] = []
+        for tracked in self._tracked_orders.values():
+            orders.append(
+                ParibuOrder(
+                    order_id=tracked.order_id,
+                    client_order_id=tracked.client_order_id,
+                    side=tracked.side,
+                    price=tracked.price,
+                    quantity=tracked.quantity,
+                    filled_qty=tracked.filled_qty,
+                    status="open",
+                )
+            )
+        return orders
 
     def _refresh_tracked_orders(self) -> List[ParibuOrder]:
         open_orders: List[ParibuOrder] = []
@@ -177,6 +195,15 @@ class BotEngine:
         qty_str = format_decimal(self._order_qty, self._pair.qty_step)
         client_id = self._next_client_id(side)
         if self._settings.dry_run:
+            order_id = f"dry-{side}-{price_str}"
+            self._tracked_orders[order_id] = TrackedOrder(
+                order_id=order_id,
+                side=side,
+                price=price,
+                quantity=self._order_qty,
+                filled_qty=Decimal("0"),
+                client_order_id=client_id,
+            )
             self._log(f"DRY RUN place {side} {price_str} qty={qty_str}")
             return
         order = self._paribu.place_limit_order(
@@ -194,6 +221,7 @@ class BotEngine:
 
     def _cancel_order(self, order: ParibuOrder) -> None:
         if self._settings.dry_run:
+            self._tracked_orders.pop(order.order_id, None)
             self._log(f"DRY RUN cancel {order.order_id}")
             return
         self._paribu.cancel_order(self._pair.paribu_symbol, order.order_id)
