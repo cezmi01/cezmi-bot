@@ -14,12 +14,16 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Dict
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
 from bot.binance_client import BinanceClient
 from bot.config import ConfigError, load_config
 from bot.engine import BotEngine, EngineSettings
 from bot.paribu_client import ParibuClient
 
-SETTINGS_PATH = os.path.join(os.path.dirname(__file__), "settings.json")
+SETTINGS_PATH = os.path.join(BASE_DIR, "settings.json")
 
 
 def configure_logging() -> logging.Logger:
@@ -27,7 +31,7 @@ def configure_logging() -> logging.Logger:
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
 
-    log_dir = os.path.join(os.path.dirname(__file__), "logs")
+    log_dir = os.path.join(BASE_DIR, "logs")
     os.makedirs(log_dir, exist_ok=True)
     file_handler = logging.FileHandler(os.path.join(log_dir, "bot.log"))
     file_handler.setFormatter(formatter)
