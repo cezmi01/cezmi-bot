@@ -66,6 +66,8 @@ class BotEngine:
         self._order_trade_filled: Dict[str, Decimal] = {}
         self._base_asset = self._pair.paribu_symbol.split("_", 1)[0].upper()
         self._balance_last_total: Optional[Decimal] = None
+        self._hedge_open_remainder = Decimal("0")
+        self._hedge_close_remainder = Decimal("0")
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -232,9 +234,13 @@ class BotEngine:
             )
             self._log(f"DRY RUN place {side} {price_str} qty={qty_str}")
             return
-        order = self._paribu.place_limit_order(
-            self._pair.paribu_symbol, side, price_str, qty_str, client_id
-        )
+        try:
+            order = self._paribu.place_limit_order(
+                self._pair.paribu_symbol, side, price_str, qty_str, client_id
+            )
+        except Exception as exc:
+            self._log(f"Place order failed {side} {price_str}: {exc}", level="warning")
+            return
         self._tracked_orders[order.order_id] = TrackedOrder(
             order_id=order.order_id,
             side=order.side,
@@ -449,27 +455,30 @@ class BotEngine:
             binance_side = "SELL"
             reduce_only = False
             action = "open_short"
-            hedge_qty = qty
+            total_qty = qty + self._hedge_open_remainder
         else:
             binance_side = "BUY"
             reduce_only = True
-            hedge_qty = min(qty, self._short_qty)
-            if hedge_qty <= 0:
+            total_qty = qty + self._hedge_close_remainder
+            if self._short_qty <= 0:
                 self._log("No short position to close.", level="warning")
                 return
             action = "close_short"
 
-        hedge_qty = self._binance.adjust_futures_qty(self._pair.binance_futures_symbol, hedge_qty)
+        if action == "close_short":
+            total_qty = min(total_qty, self._short_qty)
+        hedge_qty = self._binance.adjust_futures_qty(self._pair.binance_futures_symbol, total_qty)
         if hedge_qty <= 0:
             self._log(f"Hedge {action} skipped; qty below step size.", level="warning")
             return
 
-        if action == "open_short":
-            self._short_qty += hedge_qty
-        else:
-            self._short_qty = max(self._short_qty - hedge_qty, Decimal("0"))
-
         if self._settings.dry_run:
+            if action == "open_short":
+                self._short_qty += hedge_qty
+                self._hedge_open_remainder = total_qty - hedge_qty
+            else:
+                self._short_qty = max(self._short_qty - hedge_qty, Decimal("0"))
+                self._hedge_close_remainder = total_qty - hedge_qty
             self._log(f"DRY RUN hedge {action} qty={hedge_qty}")
             return
 
@@ -482,7 +491,17 @@ class BotEngine:
             )
         except Exception as exc:
             self._log(f"Hedge {action} failed: {exc}", level="error")
+            if action == "open_short":
+                self._hedge_open_remainder = total_qty
+            else:
+                self._hedge_close_remainder = total_qty
             return
+        if action == "open_short":
+            self._short_qty += hedge_qty
+            self._hedge_open_remainder = total_qty - hedge_qty
+        else:
+            self._short_qty = max(self._short_qty - hedge_qty, Decimal("0"))
+            self._hedge_close_remainder = total_qty - hedge_qty
         self._log(
             f"Hedge {action} side={binance_side} qty={hedge_qty} "
             f"status={result.status} id={result.order_id}"
