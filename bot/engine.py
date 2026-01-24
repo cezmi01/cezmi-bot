@@ -66,11 +66,13 @@ class BotEngine:
         self._order_trade_filled: Dict[str, Decimal] = {}
         self._base_asset = self._pair.paribu_symbol.split("_", 1)[0].upper()
         self._balance_last_total: Optional[Decimal] = None
+        self._balance_last_seen: Optional[Decimal] = None
         self._hedge_open_remainder = Decimal("0")
         self._hedge_close_remainder = Decimal("0")
         self._futures_multiplier = self._binance.get_futures_multiplier(
             self._pair.binance_futures_symbol
         )
+        self._last_balance_log_ts = 0.0
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -116,6 +118,7 @@ class BotEngine:
             level="debug",
         )
         self._sync_orders(buy_prices, sell_prices)
+        self._log_balance_sync_state()
 
     def _calculate_target_prices(self, binance_price_tl: Decimal) -> Tuple[List[Decimal], List[Decimal]]:
         profit_fraction = self._settings.profit_percent / Decimal("100")
@@ -168,6 +171,7 @@ class BotEngine:
         if not self._trade_sync_ok:
             self._sync_balance_hedge()
         self._sync_short_to_balance()
+        self._log_balance_sync_state()
 
     def _fetch_open_orders(self) -> List[ParibuOrder]:
         if self._settings.dry_run:
@@ -404,6 +408,7 @@ class BotEngine:
         if total is None:
             return
 
+        self._balance_last_seen = total
         if self._balance_last_total is None:
             self._balance_last_total = total
             return
@@ -429,6 +434,7 @@ class BotEngine:
         total = self._get_balance_total()
         if total is None:
             return
+        self._balance_last_seen = total
         if self._balance_last_total is None:
             self._balance_last_total = total
 
@@ -448,6 +454,22 @@ class BotEngine:
         else:
             self._log(f"Balance sync close_short delta={abs(delta)}", level="debug")
             self._hedge_fill("sell", abs(delta))
+
+    def _log_balance_sync_state(self) -> None:
+        now = time.time()
+        if now - self._last_balance_log_ts < 300:
+            return
+        total = self._balance_last_seen
+        if total is None:
+            total = self._get_balance_total()
+        if total is None:
+            return
+        delta = total - self._short_qty
+        self._log(
+            f"Balance sync status paribu={total} short={self._short_qty} delta={delta}",
+            level="info",
+        )
+        self._last_balance_log_ts = now
 
     def _get_balance_total(self) -> Optional[Decimal]:
         try:
