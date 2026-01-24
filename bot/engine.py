@@ -510,6 +510,25 @@ class BotEngine:
             return
         hedge_coin = hedge_contract * self._futures_multiplier
 
+        min_notional = self._binance.get_futures_min_notional(self._pair.binance_futures_symbol)
+        if min_notional > 0:
+            try:
+                price = self._binance.get_futures_price(self._pair.binance_futures_symbol)
+            except Exception as exc:
+                self._log(f"Min notional check failed: {exc}", level="warning")
+                price = Decimal("0")
+            notional = hedge_contract * price * self._futures_multiplier
+            if price > 0 and notional < min_notional:
+                self._log(
+                    f"Hedge {action} skipped; notional {notional} < min {min_notional}.",
+                    level="warning",
+                )
+                if action == "open_short":
+                    self._hedge_open_remainder = total_contract
+                else:
+                    self._hedge_close_remainder = total_contract
+                return
+
         if self._settings.dry_run:
             if action == "open_short":
                 self._short_qty += hedge_coin

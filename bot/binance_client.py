@@ -40,6 +40,7 @@ class BinanceClient:
         self._futures_symbols: list[Dict[str, Any]] = []
         self._futures_symbol_info: Dict[str, Dict[str, Any]] = {}
         self._futures_step_map: Dict[str, Decimal] = {}
+        self._futures_min_notional_map: Dict[str, Decimal] = {}
         self._futures_last_fetch = 0.0
 
     def _sign(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -128,6 +129,10 @@ class BinanceClient:
                 break
         return Decimal(digits) if digits else Decimal("1")
 
+    def get_futures_min_notional(self, symbol: str) -> Decimal:
+        self._ensure_futures_symbols()
+        return self._futures_min_notional_map.get(symbol.upper(), Decimal("0"))
+
     def adjust_futures_qty(self, symbol: str, quantity: Decimal) -> Decimal:
         step = self.get_futures_step(symbol)
         if step <= 0:
@@ -204,6 +209,7 @@ class BinanceClient:
         mapping: Dict[tuple[str, str], str] = {}
         info_map: Dict[str, Dict[str, Any]] = {}
         step_map: Dict[str, Decimal] = {}
+        min_notional_map: Dict[str, Decimal] = {}
         for entry in symbols:
             if entry.get("status") != "TRADING":
                 continue
@@ -217,8 +223,15 @@ class BinanceClient:
                     if filt.get("filterType") == "LOT_SIZE":
                         step_map[symbol] = to_decimal(filt.get("stepSize", "0"))
                         break
+                for filt in entry.get("filters", []):
+                    if filt.get("filterType") in ("MIN_NOTIONAL", "NOTIONAL"):
+                        min_val = filt.get("notional") or filt.get("minNotional")
+                        if min_val is not None:
+                            min_notional_map[symbol] = to_decimal(min_val)
+                        break
         self._futures_symbol_map = mapping
         self._futures_symbol_info = info_map
         self._futures_step_map = step_map
+        self._futures_min_notional_map = min_notional_map
         self._futures_symbols = symbols
         self._futures_last_fetch = now
