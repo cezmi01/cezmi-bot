@@ -236,13 +236,15 @@ class BotEngine:
         for order in orders:
             if order.client_order_id and order.client_order_id.startswith(prefix):
                 filtered.append(order)
-        if orders and not filtered and not self._warned_no_client_id:
-            self._warned_no_client_id = True
-            self._log(
-                "Open orders have no client IDs. Set manage_all_orders=true or "
-                "enable clientOrderId in Paribu API.",
-                level="warning",
-            )
+        if orders and not filtered:
+            if not self._warned_no_client_id:
+                self._warned_no_client_id = True
+                self._log(
+                    "Open orders have no client IDs. Auto-managing all open orders. "
+                    "Set manage_all_orders=true to silence this warning.",
+                    level="warning",
+                )
+            return orders
         return filtered
 
     def _update_tracked_orders(self, orders: List[ParibuOrder]) -> None:

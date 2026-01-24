@@ -62,7 +62,13 @@ class BinanceClient:
         url = f"{base_url}{path}"
         response = self._session.request(method, url, params=params, timeout=10)
         response.raise_for_status()
-        return response.json()
+        try:
+            return response.json()
+        except ValueError as exc:
+            body_preview = response.text[:300] if response.text else ""
+            raise ValueError(
+                f"Binance invalid JSON {response.status_code} {path}: {body_preview}"
+            ) from exc
 
     def get_futures_price(self, symbol: str) -> Decimal:
         data = self._request(

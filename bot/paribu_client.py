@@ -122,7 +122,13 @@ class ParibuClient:
 
         response = self._session.request(method, url, **request_kwargs)
         response.raise_for_status()
-        return response.json()
+        try:
+            return response.json()
+        except ValueError as exc:
+            body_preview = response.text[:300] if response.text else ""
+            raise ValueError(
+                f"Paribu invalid JSON {response.status_code} {path_with_query}: {body_preview}"
+            ) from exc
 
     def get_orderbook(self, market: str, depth: int = 50) -> OrderBook:
         data = self._request("GET", "orderbook", {"market": market, "depth": depth}, signed=False)
