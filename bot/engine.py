@@ -59,10 +59,13 @@ class BotEngine:
         self._client_id_counter = 0
         self._warned_no_client_id = False
         self._warned_no_open_orders = False
+        self._warned_no_assets = False
         self._trade_seen: set[str] = set()
         self._last_trade_seen: Optional[str] = None
         self._trade_sync_ok = False
         self._order_trade_filled: Dict[str, Decimal] = {}
+        self._base_asset = self._pair.paribu_symbol.split("_", 1)[0].upper()
+        self._balance_last_total: Optional[Decimal] = None
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -93,6 +96,8 @@ class BotEngine:
     def _tick(self) -> None:
         self._sync_position_if_needed()
         self._sync_trades_history()
+        if not self._trade_sync_ok:
+            self._sync_balance_hedge()
         try:
             binance_price_tl = self._get_binance_tl_price()
         except Exception as exc:
@@ -154,6 +159,8 @@ class BotEngine:
             managed_orders = self._refresh_tracked_orders()
         self._update_tracked_orders(managed_orders)
         self._handle_fill_updates(managed_orders)
+        if not self._trade_sync_ok:
+            self._sync_balance_hedge()
 
     def _fetch_open_orders(self) -> List[ParibuOrder]:
         if self._settings.dry_run:
@@ -380,6 +387,51 @@ class BotEngine:
             if max_seen is None or created_at > max_seen:
                 max_seen = created_at
         self._last_trade_seen = max_seen
+
+    def _sync_balance_hedge(self) -> None:
+        try:
+            assets = self._paribu.get_assets()
+        except MissingEndpointError:
+            if not self._warned_no_assets:
+                self._warned_no_assets = True
+                self._log("Assets endpoint missing; balance hedge disabled.", level="warning")
+            return
+        except Exception as exc:
+            self._log(f"Assets fetch failed: {exc}", level="warning")
+            return
+
+        total = None
+        for asset in assets:
+            currency = str(asset.get("currency", "")).upper()
+            if currency == self._base_asset:
+                total_raw = asset.get("total") or asset.get("available")
+                if total_raw is not None:
+                    total = to_decimal(total_raw)
+                break
+
+        if total is None:
+            return
+
+        if self._balance_last_total is None:
+            self._balance_last_total = total
+            return
+
+        delta = total - self._balance_last_total
+        if delta == 0:
+            return
+
+        epsilon = self._pair.qty_step if self._pair.qty_step > 0 else Decimal("0.00000001")
+        if abs(delta) < epsilon:
+            return
+
+        if delta > 0:
+            self._log(f"Balance hedge buy delta={delta}", level="debug")
+            self._hedge_fill("buy", delta)
+        else:
+            self._log(f"Balance hedge sell delta={abs(delta)}", level="debug")
+            self._hedge_fill("sell", abs(delta))
+
+        self._balance_last_total = total
 
     def _apply_fill_delta(self, tracked: TrackedOrder, new_filled_qty: Decimal) -> None:
         delta = new_filled_qty - tracked.filled_qty

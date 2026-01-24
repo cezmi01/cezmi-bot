@@ -148,6 +148,15 @@ class ParibuClient:
             return trades
         return []
 
+    def get_assets(self) -> List[Dict[str, Any]]:
+        data = self._request("GET", "user_assets", signed=True)
+        if isinstance(data, list):
+            return data
+        assets = data.get("assets")
+        if isinstance(assets, list):
+            return assets
+        return []
+
     def get_open_orders(self, market: Optional[str] = None) -> List[ParibuOrder]:
         params = {"market": market} if market else {}
         data = self._request("GET", "open_orders", params, signed=True)

@@ -19,7 +19,8 @@
       "order_status": { "path": "/order/{order_id}", "method": "GET", "body": "params" },
       "open_orders": { "path": "/open-orders", "method": "GET", "body": "params" },
       "orderbook": { "path": "/orderbook", "method": "GET", "body": "params" },
-      "trades_history": { "path": "/trades/history", "method": "GET", "body": "params" }
+      "trades_history": { "path": "/trades/history", "method": "GET", "body": "params" },
+      "user_assets": { "path": "/user/assets", "method": "GET", "body": "params" }
     }
   },
   "binance": {
