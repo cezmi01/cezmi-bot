@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, ROUND_DOWN
 import hashlib
 import hmac
 import time
@@ -38,6 +38,7 @@ class BinanceClient:
         self._session.headers.update({"X-MBX-APIKEY": api_key})
         self._futures_symbol_map: Dict[tuple[str, str], str] = {}
         self._futures_symbols: list[Dict[str, Any]] = []
+        self._futures_step_map: Dict[str, Decimal] = {}
         self._futures_last_fetch = 0.0
 
     def _sign(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -110,6 +111,17 @@ class BinanceClient:
             return fuzzy[0]
         return None
 
+    def get_futures_step(self, symbol: str) -> Decimal:
+        self._ensure_futures_symbols()
+        return self._futures_step_map.get(symbol.upper(), Decimal("0"))
+
+    def adjust_futures_qty(self, symbol: str, quantity: Decimal) -> Decimal:
+        step = self.get_futures_step(symbol)
+        if step <= 0:
+            return quantity
+        factor = (quantity / step).to_integral_value(rounding=ROUND_DOWN)
+        return factor * step
+
     def get_spot_price(self, symbol: str) -> Decimal:
         data = self._request("GET", self._spot_base_url, "/api/v3/ticker/price", {"symbol": symbol})
         return to_decimal(data["price"])
@@ -177,6 +189,7 @@ class BinanceClient:
         data = self._request("GET", self._futures_base_url, "/fapi/v1/exchangeInfo")
         symbols = data.get("symbols", [])
         mapping: Dict[tuple[str, str], str] = {}
+        step_map: Dict[str, Decimal] = {}
         for entry in symbols:
             if entry.get("status") != "TRADING":
                 continue
@@ -185,6 +198,11 @@ class BinanceClient:
             symbol = str(entry.get("symbol", "")).upper()
             if base and quote and symbol:
                 mapping[(base, quote)] = symbol
+                for filt in entry.get("filters", []):
+                    if filt.get("filterType") == "LOT_SIZE":
+                        step_map[symbol] = to_decimal(filt.get("stepSize", "0"))
+                        break
         self._futures_symbol_map = mapping
+        self._futures_step_map = step_map
         self._futures_symbols = symbols
         self._futures_last_fetch = now

@@ -87,13 +87,18 @@ class BotEngine:
         self._log("Bot stopped.")
 
     def _tick(self) -> None:
-        binance_price_tl = self._get_binance_tl_price()
+        self._sync_position_if_needed()
+        try:
+            binance_price_tl = self._get_binance_tl_price()
+        except Exception as exc:
+            self._log(f"Price fetch failed: {exc}", level="warning")
+            self._sync_fills_only()
+            return
         buy_prices, sell_prices = self._calculate_target_prices(binance_price_tl)
         self._log(
             f"Binance TL={binance_price_tl} buy={buy_prices} sell={sell_prices}",
             level="debug",
         )
-        self._sync_position_if_needed()
         self._sync_orders(buy_prices, sell_prices)
 
     def _calculate_target_prices(self, binance_price_tl: Decimal) -> Tuple[List[Decimal], List[Decimal]]:
@@ -136,6 +141,14 @@ class BotEngine:
         for order in managed_orders:
             if order.order_id not in keep_ids:
                 self._cancel_order(order)
+
+    def _sync_fills_only(self) -> None:
+        open_orders = self._fetch_open_orders()
+        managed_orders = self._filter_managed_orders(open_orders)
+        if not managed_orders and self._tracked_orders:
+            managed_orders = self._refresh_tracked_orders()
+        self._update_tracked_orders(managed_orders)
+        self._handle_fill_updates(managed_orders)
 
     def _fetch_open_orders(self) -> List[ParibuOrder]:
         if self._settings.dry_run:
@@ -299,30 +312,43 @@ class BotEngine:
         if side == "buy":
             binance_side = "SELL"
             reduce_only = False
-            self._short_qty += qty
             action = "open_short"
+            hedge_qty = qty
         else:
             binance_side = "BUY"
             reduce_only = True
-            qty = min(qty, self._short_qty)
-            if qty <= 0:
+            hedge_qty = min(qty, self._short_qty)
+            if hedge_qty <= 0:
                 self._log("No short position to close.", level="warning")
                 return
-            self._short_qty -= qty
             action = "close_short"
 
-        if self._settings.dry_run:
-            self._log(f"DRY RUN hedge {action} qty={qty}")
+        hedge_qty = self._binance.adjust_futures_qty(self._pair.binance_futures_symbol, hedge_qty)
+        if hedge_qty <= 0:
+            self._log(f"Hedge {action} skipped; qty below step size.", level="warning")
             return
 
-        result = self._binance.market_order(
-            self._pair.binance_futures_symbol,
-            binance_side,
-            qty,
-            reduce_only=reduce_only,
-        )
+        if action == "open_short":
+            self._short_qty += hedge_qty
+        else:
+            self._short_qty = max(self._short_qty - hedge_qty, Decimal("0"))
+
+        if self._settings.dry_run:
+            self._log(f"DRY RUN hedge {action} qty={hedge_qty}")
+            return
+
+        try:
+            result = self._binance.market_order(
+                self._pair.binance_futures_symbol,
+                binance_side,
+                hedge_qty,
+                reduce_only=reduce_only,
+            )
+        except Exception as exc:
+            self._log(f"Hedge {action} failed: {exc}", level="error")
+            return
         self._log(
-            f"Hedge {action} side={binance_side} qty={qty} "
+            f"Hedge {action} side={binance_side} qty={hedge_qty} "
             f"status={result.status} id={result.order_id}"
         )
 
