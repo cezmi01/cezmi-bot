@@ -145,7 +145,18 @@ class ParibuClient:
     def get_open_orders(self, market: Optional[str] = None) -> List[ParibuOrder]:
         params = {"market": market} if market else {}
         data = self._request("GET", "open_orders", params, signed=True)
-        orders_raw = data.get("orders", data)
+        orders_raw: List[Dict[str, Any]] = []
+        if isinstance(data, list):
+            orders_raw = data
+        elif isinstance(data, dict):
+            if isinstance(data.get("orders"), list):
+                orders_raw = data["orders"]
+            elif isinstance(data.get("data"), list):
+                orders_raw = data["data"]
+            elif isinstance(data.get("payload"), list):
+                orders_raw = data["payload"]
+            else:
+                orders_raw = []
         return [self._parse_order(item) for item in orders_raw]
 
     def place_limit_order(
