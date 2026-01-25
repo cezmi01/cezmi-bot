@@ -12,7 +12,7 @@ import threading
 import time
 import tkinter as tk
 from tkinter import messagebox, ttk
-from typing import Dict
+from typing import Dict, List, Optional
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
@@ -109,6 +109,31 @@ def _resolve_api_keys(config, api_settings: Dict[str, str]) -> tuple[str, str, s
     if missing:
         raise ConfigError("Eksik API anahtari: " + ", ".join(missing))
     return paribu_key, paribu_secret, binance_key, binance_secret
+
+
+def _parse_qty_levels(raw_values: List[str]) -> List[Decimal]:
+    values: List[Decimal] = []
+    last: Optional[Decimal] = None
+    for raw in raw_values:
+        text = raw.strip()
+        if text:
+            qty = Decimal(text)
+            last = qty
+        else:
+            if last is None:
+                continue
+            qty = last
+        values.append(qty)
+    if not values:
+        raise ConfigError("Emir miktari bos olamaz.")
+    while len(values) < 3:
+        values.append(values[-1])
+    return values[:3]
+
+
+def _parse_order_qty_arg(value: str) -> List[Decimal]:
+    parts = [part.strip() for part in value.split(",") if part.strip()]
+    return _parse_qty_levels(parts)
 
 
 def _infer_tick_size(paribu: ParibuClient, market: str) -> Decimal:
@@ -225,9 +250,18 @@ class BotApp(tk.Tk):
         self.pair_combo = ttk.Combobox(form, textvariable=self.pair_var, state="normal")
         self.pair_combo.grid(row=0, column=1, sticky="ew")
 
-        ttk.Label(form, text="Emir miktarı (coin)").grid(row=1, column=0, sticky="w")
-        self.qty_var = tk.StringVar(value="100")
-        ttk.Entry(form, textvariable=self.qty_var).grid(row=1, column=1, sticky="ew")
+        ttk.Label(form, text="Emir miktarı (1/2/3)").grid(row=1, column=0, sticky="w")
+        qty_frame = ttk.Frame(form)
+        qty_frame.grid(row=1, column=1, sticky="ew")
+        qty_frame.columnconfigure((0, 1, 2), weight=1)
+        self.qty_vars = [
+            tk.StringVar(value="100"),
+            tk.StringVar(value="100"),
+            tk.StringVar(value="100"),
+        ]
+        ttk.Entry(qty_frame, textvariable=self.qty_vars[0], width=10).grid(row=0, column=0, padx=2)
+        ttk.Entry(qty_frame, textvariable=self.qty_vars[1], width=10).grid(row=0, column=1, padx=2)
+        ttk.Entry(qty_frame, textvariable=self.qty_vars[2], width=10).grid(row=0, column=2, padx=2)
 
         ttk.Label(form, text="Kar yüzdesi").grid(row=2, column=0, sticky="w")
         self.profit_var = tk.StringVar(value="1")
@@ -333,8 +367,9 @@ class BotApp(tk.Tk):
             return
         try:
             api_settings = self._get_api_settings()
+            qty_levels = _parse_qty_levels([var.get() for var in self.qty_vars])
             settings = EngineSettings(
-                order_qty=Decimal(self.qty_var.get()),
+                order_qty_levels=qty_levels,
                 profit_percent=Decimal(self.profit_var.get()),
                 poll_interval=float(self.poll_var.get()),
                 leverage=int(self.leverage_var.get()),
@@ -376,8 +411,9 @@ class BotApp(tk.Tk):
 
 
 def run_headless(args: argparse.Namespace, logger: logging.Logger, api_settings: Dict[str, str]) -> None:
+    qty_levels = _parse_order_qty_arg(args.order_qty)
     settings = EngineSettings(
-        order_qty=Decimal(args.order_qty),
+        order_qty_levels=qty_levels,
         profit_percent=Decimal(args.profit_pct),
         poll_interval=float(args.poll_interval),
         leverage=int(args.leverage),
@@ -400,7 +436,7 @@ def main() -> None:
     parser.add_argument("--settings", default=SETTINGS_PATH)
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--pair", default="")
-    parser.add_argument("--order-qty", default="100")
+    parser.add_argument("--order-qty", default="100", help="e.g. 100 or 100,200,300")
     parser.add_argument("--profit-pct", default="1")
     parser.add_argument("--poll-interval", default="2")
     parser.add_argument("--leverage", default="5")

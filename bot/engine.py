@@ -15,7 +15,7 @@ from .utils import clamp_min, format_decimal, round_down, round_up, to_decimal
 
 @dataclass
 class EngineSettings:
-    order_qty: Decimal
+    order_qty_levels: List[Decimal]
     profit_percent: Decimal
     poll_interval: float
     leverage: int
@@ -50,7 +50,7 @@ class BotEngine:
         self._logger = logger or logging.getLogger(__name__)
         self._log_callback = log_callback
 
-        self._order_qty = self._normalize_qty(settings.order_qty)
+        self._order_qty_levels = self._normalize_qty_levels(settings.order_qty_levels)
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._tracked_orders: Dict[str, TrackedOrder] = {}
@@ -148,17 +148,30 @@ class BotEngine:
             open_by_key.setdefault(key, []).append(order)
 
         keep_ids: set[str] = set()
-        for side, price in desired:
+        cancelled_ids: set[str] = set()
+        desired_keys = {(side, price) for side, price, _ in desired}
+        for side, price, qty in desired:
             orders = open_by_key.get((side, price), [])
             if orders:
-                keep_ids.add(orders[0].order_id)
-                for extra in orders[1:]:
-                    self._cancel_order(extra)
+                matching = next((order for order in orders if order.quantity == qty), None)
+                if matching:
+                    keep_ids.add(matching.order_id)
+                    for extra in orders:
+                        if extra.order_id != matching.order_id:
+                            self._cancel_order(extra)
+                            cancelled_ids.add(extra.order_id)
+                else:
+                    for extra in orders:
+                        self._cancel_order(extra)
+                        cancelled_ids.add(extra.order_id)
+                    self._place_order(side, price, qty)
             else:
-                self._place_order(side, price)
+                self._place_order(side, price, qty)
 
         for order in managed_orders:
-            if order.order_id not in keep_ids:
+            if order.order_id in keep_ids or order.order_id in cancelled_ids:
+                continue
+            if (order.side, order.price) not in desired_keys:
                 self._cancel_order(order)
 
     def _sync_fills_only(self) -> None:
@@ -219,17 +232,29 @@ class BotEngine:
             open_orders.append(order)
         return open_orders
 
-    def _build_desired_orders(self, buy_prices: Iterable[Decimal], sell_prices: Iterable[Decimal]) -> List[Tuple[str, Decimal]]:
-        desired: List[Tuple[str, Decimal]] = []
-        for price in buy_prices:
-            desired.append(("buy", price))
-        for price in sell_prices:
-            desired.append(("sell", price))
+    def _build_desired_orders(
+        self, buy_prices: Iterable[Decimal], sell_prices: Iterable[Decimal]
+    ) -> List[Tuple[str, Decimal, Decimal]]:
+        desired: List[Tuple[str, Decimal, Decimal]] = []
+        for idx, price in enumerate(buy_prices):
+            if idx >= len(self._order_qty_levels):
+                break
+            qty = self._order_qty_levels[idx]
+            if qty <= 0:
+                continue
+            desired.append(("buy", price, qty))
+        for idx, price in enumerate(sell_prices):
+            if idx >= len(self._order_qty_levels):
+                break
+            qty = self._order_qty_levels[idx]
+            if qty <= 0:
+                continue
+            desired.append(("sell", price, qty))
         return desired
 
-    def _place_order(self, side: str, price: Decimal) -> None:
+    def _place_order(self, side: str, price: Decimal, qty: Decimal) -> None:
         price_str = format_decimal(price, self._pair.tick_size)
-        qty_str = format_decimal(self._order_qty, self._pair.qty_step)
+        qty_str = format_decimal(qty, self._pair.qty_step)
         client_id = self._next_client_id(side)
         if self._settings.dry_run:
             order_id = f"dry-{side}-{price_str}"
@@ -237,7 +262,7 @@ class BotEngine:
                 order_id=order_id,
                 side=side,
                 price=price,
-                quantity=self._order_qty,
+                quantity=qty,
                 filled_qty=Decimal("0"),
                 client_order_id=client_id,
             )
@@ -593,11 +618,21 @@ class BotEngine:
 
     def _normalize_qty(self, qty: Decimal) -> Decimal:
         qty = round_down(qty, self._pair.qty_step)
+        if qty <= 0:
+            return Decimal("0")
         if qty < self._pair.min_qty:
             raise ValueError(
                 f"Order quantity {qty} is below minimum {self._pair.min_qty}."
             )
         return qty
+
+    def _normalize_qty_levels(self, levels: List[Decimal]) -> List[Decimal]:
+        if not levels:
+            raise ValueError("Order quantity list is empty.")
+        normalized = [self._normalize_qty(level) for level in levels]
+        while len(normalized) < 3:
+            normalized.append(normalized[-1])
+        return normalized[:3]
 
     def _prepare_binance(self) -> None:
         if self._settings.dry_run:

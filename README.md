@@ -54,7 +54,7 @@ python app.py
 GUI'de:
 - Ayarlar sekmesinden Paribu/Binance API key ve secret girin (settings.json'a kaydedilir)
 - Pariteyi yazin (ornek: LINEA/TRY veya linea_tl). Binance Futures sembolu otomatik eslesir.
-- Emir miktarini girin (coin bazinda)
+- Emir miktarlarini girin (1/2/3 kademeler icin ayri)
 - Kar yuzdesi (varsayilan 1)
 - Polling suresi
 - Leverage (varsayilan 5)
@@ -62,7 +62,7 @@ GUI'de:
 
 ## Calistirma (Headless)
 ```bash
-python app.py --headless --pair "LINEA/TRY" --order-qty 100 --profit-pct 1 --poll-interval 2
+python app.py --headless --pair "LINEA/TRY" --order-qty 100,200,300 --profit-pct 1 --poll-interval 2
 ```
 Headless modda API anahtarlari `settings.json` dosyasindan okunur
 (`--settings` ile farkli dosya verebilirsiniz).
