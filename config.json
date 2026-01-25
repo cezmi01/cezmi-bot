@@ -1,0 +1,43 @@
+{
+  "paribu": {
+    "base_url": "https://api.paribu.com",
+    "api_key": "",
+    "api_secret": "",
+    "auth_type": "hmac_sha256_base64",
+    "key_header": "Authorization",
+    "sign_header": "X-Signature",
+    "signature_param": null,
+    "signature_base": "query",
+    "timestamp_param": null,
+    "recv_window_ms": 0,
+    "client_order_id_prefix": "CBOT",
+    "post_style": "json",
+    "manage_all_orders": false,
+    "endpoints": {
+      "place_order": { "path": "/order", "method": "POST", "body": "json" },
+      "cancel_order": { "path": "/order/{order_id}", "method": "DELETE", "body": "params" },
+      "order_status": { "path": "/order/{order_id}", "method": "GET", "body": "params" },
+      "open_orders": { "path": "/open-orders", "method": "GET", "body": "params" },
+      "orderbook": { "path": "/orderbook", "method": "GET", "body": "params" },
+      "trades_history": { "path": "/trades/history", "method": "GET", "body": "params" },
+      "user_assets": { "path": "/user/assets", "method": "GET", "body": "params" }
+    }
+  },
+  "binance": {
+    "futures_base_url": "https://fapi.binance.com",
+    "spot_base_url": "https://api.binance.com",
+    "api_key": "",
+    "api_secret": "",
+    "recv_window_ms": 5000
+  },
+  "pairs": [
+    {
+      "name": "LINEA/TRY",
+      "paribu_symbol": "linea_tl",
+      "binance_futures_symbol": "LINEAUSDT",
+      "tick_size": "0.01",
+      "qty_step": "0.1",
+      "min_qty": "1"
+    }
+  ]
+}
