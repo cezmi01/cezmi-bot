@@ -2,10 +2,11 @@
 
 ## ENJ arbitraj botu (Paribu <-> Binance)
 
-Bu repo, Paribu (TL) ve Binance (USDT) spot fiyatlari arasindaki farki izler.
-Binance ENJ/USDT fiyatini USDT/TRY ile carpip TL'ye cevirir. Fark yuzde 4 ve
-uzerine cikarsa Telegram bildirimi atar ve fark her yuzde 1 degisimde tekrar
-bildirim gonderir. Her saniye terminale anlik fiyatlari ve farki yazar.
+Bu repo, Paribu (TL) en iyi alici (bid) ve Binance (USDT) en iyi satici (ask)
+fiyatlarini karsilastirir. Binance ENJ/USDT ask fiyatini USDT/TRY ask ile
+carpip TL'ye cevirir. Fark yuzde 4 ve uzerine cikarsa Telegram bildirimi atar
+ve fark her yuzde 1 degisimde tekrar bildirim gonderir. Her saniye terminale
+anlik fiyatlari ve farki yazar.
 
 ### Kurulum
 

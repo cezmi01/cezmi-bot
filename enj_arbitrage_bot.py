@@ -7,13 +7,32 @@ from typing import Any, Iterable, Optional
 
 import requests
 
-BINANCE_ENDPOINT = "https://api.binance.com/api/v3/ticker/price"
+BINANCE_BOOK_ENDPOINT = "https://api.binance.com/api/v3/ticker/bookTicker"
 DEFAULT_PARIBU_ENDPOINTS = (
     "https://www.paribu.com/ticker",
     "https://paribu.com/ticker",
     "https://api.paribu.com/ticker",
 )
-PARIBU_PRICE_FIELDS = ("last", "last_price", "lastPrice", "price", "close")
+PARIBU_BID_FIELDS = (
+    "highestBid",
+    "highest_bid",
+    "bid",
+    "bidPrice",
+    "bid_price",
+    "bestBid",
+    "buy",
+    "buy_price",
+)
+PARIBU_ASK_FIELDS = (
+    "lowestAsk",
+    "lowest_ask",
+    "ask",
+    "askPrice",
+    "ask_price",
+    "bestAsk",
+    "sell",
+    "sell_price",
+)
 
 
 def env_float(name: str, default: float) -> float:
@@ -35,8 +54,11 @@ def format_price(value: float, decimals: int = 8) -> str:
     return text or "0"
 
 
-def extract_price_from_entry(entry: dict[str, Any]) -> Optional[float]:
-    for field in PARIBU_PRICE_FIELDS:
+def extract_float_from_entry(
+    entry: dict[str, Any],
+    fields: Iterable[str],
+) -> Optional[float]:
+    for field in fields:
         if field in entry:
             try:
                 return float(entry[field])
@@ -45,50 +67,56 @@ def extract_price_from_entry(entry: dict[str, Any]) -> Optional[float]:
     return None
 
 
-def extract_paribu_price(data: Any, symbol: str) -> Optional[float]:
+def extract_paribu_value(
+    data: Any,
+    symbol: str,
+    fields: Iterable[str],
+) -> Optional[float]:
     symbol_upper = symbol.upper()
     if isinstance(data, dict):
         if symbol_upper in data and isinstance(data[symbol_upper], dict):
-            price = extract_price_from_entry(data[symbol_upper])
-            if price is not None:
-                return price
+            value = extract_float_from_entry(data[symbol_upper], fields)
+            if value is not None:
+                return value
         for key, entry in data.items():
             if isinstance(key, str) and key.upper() == symbol_upper and isinstance(entry, dict):
-                price = extract_price_from_entry(entry)
-                if price is not None:
-                    return price
+                value = extract_float_from_entry(entry, fields)
+                if value is not None:
+                    return value
         for nested_key in ("data", "result", "ticker"):
             if nested_key in data:
-                price = extract_paribu_price(data[nested_key], symbol)
-                if price is not None:
-                    return price
+                value = extract_paribu_value(data[nested_key], symbol, fields)
+                if value is not None:
+                    return value
     if isinstance(data, list):
         for item in data:
             if not isinstance(item, dict):
                 continue
             symbol_field = item.get("symbol") or item.get("pair") or item.get("market")
             if isinstance(symbol_field, str) and symbol_field.upper() == symbol_upper:
-                price = extract_price_from_entry(item)
-                if price is not None:
-                    return price
+                value = extract_float_from_entry(item, fields)
+                if value is not None:
+                    return value
     return None
 
 
-def fetch_binance_price(session: requests.Session, symbol: str) -> float:
+def fetch_binance_book(session: requests.Session, symbol: str) -> tuple[float, float]:
     response = session.get(
-        BINANCE_ENDPOINT,
+        BINANCE_BOOK_ENDPOINT,
         params={"symbol": symbol},
         timeout=5,
     )
     response.raise_for_status()
     data = response.json()
     try:
-        return float(data["price"])
+        bid = float(data["bidPrice"])
+        ask = float(data["askPrice"])
+        return bid, ask
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError(f"Unexpected Binance response: {data}") from exc
 
 
-def fetch_paribu_price(
+def fetch_paribu_best_bid(
     session: requests.Session,
     symbol: str,
     endpoints: Iterable[str],
@@ -99,14 +127,16 @@ def fetch_paribu_price(
             response = session.get(endpoint, timeout=5)
             response.raise_for_status()
             data = response.json()
-            price = extract_paribu_price(data, symbol)
-            if price is not None:
-                return price
-            raise ValueError(f"Symbol {symbol} not found in response from {endpoint}")
+            value = extract_paribu_value(data, symbol, PARIBU_BID_FIELDS)
+            if value is not None:
+                return value
+            raise ValueError(
+                f"Best bid for {symbol} not found in response from {endpoint}"
+            )
         except Exception as exc:  # noqa: BLE001 - we want to try all endpoints
             last_error = exc
     raise RuntimeError(
-        f"Paribu price fetch failed for {symbol}. Last error: {last_error}"
+        f"Paribu best bid fetch failed for {symbol}. Last error: {last_error}"
     )
 
 
@@ -164,18 +194,20 @@ def main() -> None:
         started_at = time.monotonic()
         timestamp = dt.datetime.now().isoformat(timespec="seconds")
         try:
-            binance_usdt_price = fetch_binance_price(session, binance_symbol)
-            usdt_try = fetch_binance_price(session, binance_fx_symbol)
-            binance_tl_price = binance_usdt_price * usdt_try
-            paribu_tl_price = fetch_paribu_price(session, paribu_symbol, paribu_urls)
-            diff_percent = ((binance_tl_price - paribu_tl_price) / paribu_tl_price) * 100
+            _, binance_usdt_ask = fetch_binance_book(session, binance_symbol)
+            _, usdt_try_ask = fetch_binance_book(session, binance_fx_symbol)
+            binance_tl_ask = binance_usdt_ask * usdt_try_ask
+            paribu_best_bid = fetch_paribu_best_bid(
+                session, paribu_symbol, paribu_urls
+            )
+            diff_percent = ((paribu_best_bid - binance_tl_ask) / binance_tl_ask) * 100
             abs_diff = abs(diff_percent)
 
             print(
-                f"{timestamp} | Binance {binance_symbol}: {format_price(binance_usdt_price)} "
-                f"| USDTTRY: {format_price(usdt_try, 4)} "
-                f"| Binance TL: {format_price(binance_tl_price, 4)} "
-                f"| Paribu {paribu_symbol}: {format_price(paribu_tl_price, 4)} "
+                f"{timestamp} | Binance {binance_symbol} ask: {format_price(binance_usdt_ask)} "
+                f"| USDTTRY ask: {format_price(usdt_try_ask, 4)} "
+                f"| Binance TL ask: {format_price(binance_tl_ask, 4)} "
+                f"| Paribu {paribu_symbol} bid: {format_price(paribu_best_bid, 4)} "
                 f"| Fark: {diff_percent:+.2f}%",
                 flush=True,
             )
@@ -191,10 +223,10 @@ def main() -> None:
 
             if should_alert and telegram_enabled:
                 message = (
-                    f"ENJ arbitraj: Binance {binance_symbol} {format_price(binance_usdt_price)} | "
-                    f"USDTTRY {format_price(usdt_try, 4)} | "
-                    f"Binance TL {format_price(binance_tl_price, 4)} | "
-                    f"Paribu {paribu_symbol} {format_price(paribu_tl_price, 4)} | "
+                    f"ENJ arbitraj: Binance {binance_symbol} ask {format_price(binance_usdt_ask)} | "
+                    f"USDTTRY ask {format_price(usdt_try_ask, 4)} | "
+                    f"Binance TL ask {format_price(binance_tl_ask, 4)} | "
+                    f"Paribu {paribu_symbol} bid {format_price(paribu_best_bid, 4)} | "
                     f"Fark {diff_percent:+.2f}%"
                 )
                 send_telegram_message(session, telegram_token, telegram_chat_id, message)
