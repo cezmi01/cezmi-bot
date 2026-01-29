@@ -30,13 +30,6 @@ def env_float(name: str, default: float) -> float:
         return default
 
 
-def env_bool(name: str, default: bool = False) -> bool:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    return raw.strip().lower() in {"1", "true", "yes", "y", "on"}
-
-
 def format_price(value: float, decimals: int = 8) -> str:
     text = f"{value:.{decimals}f}".rstrip("0").rstrip(".")
     return text or "0"
@@ -134,7 +127,8 @@ def send_telegram_message(
 
 def main() -> None:
     binance_symbol = os.getenv("BINANCE_SYMBOL", "ENJUSDT")
-    paribu_symbol = os.getenv("PARIBU_SYMBOL", "ENJ_USDT")
+    binance_fx_symbol = os.getenv("BINANCE_FX_SYMBOL", "USDTTRY")
+    paribu_symbol = os.getenv("PARIBU_SYMBOL", "ENJ_TL")
     paribu_urls_raw = os.getenv("PARIBU_URLS") or os.getenv("PARIBU_URL") or ""
     paribu_urls = [
         item.strip()
@@ -144,7 +138,6 @@ def main() -> None:
 
     poll_interval = env_float("POLL_INTERVAL_SECONDS", 1.0)
     threshold_percent = env_float("THRESHOLD_PERCENT", 4.0)
-    alert_every_tick = env_bool("ALERT_EVERY_TICK", False)
 
     telegram_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
@@ -157,44 +150,51 @@ def main() -> None:
         )
 
     print(
-        "ENJ arbitraj botu basladi. Binance=%s Paribu=%s esik=%.2f%%"
-        % (binance_symbol, paribu_symbol, threshold_percent),
+        "ENJ arbitraj botu basladi. Binance=%s (%s) Paribu=%s esik=%.2f%%"
+        % (binance_symbol, binance_fx_symbol, paribu_symbol, threshold_percent),
         flush=True,
     )
 
     session = requests.Session()
     session.headers.update({"User-Agent": "enj-arbitrage-bot/1.0"})
 
-    was_above_threshold = False
+    last_alert_level: Optional[int] = None
 
     while True:
         started_at = time.monotonic()
         timestamp = dt.datetime.now().isoformat(timespec="seconds")
         try:
-            binance_price = fetch_binance_price(session, binance_symbol)
-            paribu_price = fetch_paribu_price(session, paribu_symbol, paribu_urls)
-            diff_percent = ((binance_price - paribu_price) / paribu_price) * 100
+            binance_usdt_price = fetch_binance_price(session, binance_symbol)
+            usdt_try = fetch_binance_price(session, binance_fx_symbol)
+            binance_tl_price = binance_usdt_price * usdt_try
+            paribu_tl_price = fetch_paribu_price(session, paribu_symbol, paribu_urls)
+            diff_percent = ((binance_tl_price - paribu_tl_price) / paribu_tl_price) * 100
             abs_diff = abs(diff_percent)
 
             print(
-                f"{timestamp} | Binance {binance_symbol}: {format_price(binance_price)} "
-                f"| Paribu {paribu_symbol}: {format_price(paribu_price)} "
+                f"{timestamp} | Binance {binance_symbol}: {format_price(binance_usdt_price)} "
+                f"| USDTTRY: {format_price(usdt_try, 4)} "
+                f"| Binance TL: {format_price(binance_tl_price, 4)} "
+                f"| Paribu {paribu_symbol}: {format_price(paribu_tl_price, 4)} "
                 f"| Fark: {diff_percent:+.2f}%",
                 flush=True,
             )
 
-            should_alert = abs_diff >= threshold_percent and (
-                alert_every_tick or not was_above_threshold
-            )
+            should_alert = False
+            current_level = int(abs_diff)
             if abs_diff >= threshold_percent:
-                was_above_threshold = True
+                if last_alert_level is None or current_level != last_alert_level:
+                    should_alert = True
+                    last_alert_level = current_level
             else:
-                was_above_threshold = False
+                last_alert_level = None
 
             if should_alert and telegram_enabled:
                 message = (
-                    f"ENJ arbitraj: Binance {binance_symbol} {format_price(binance_price)} | "
-                    f"Paribu {paribu_symbol} {format_price(paribu_price)} | "
+                    f"ENJ arbitraj: Binance {binance_symbol} {format_price(binance_usdt_price)} | "
+                    f"USDTTRY {format_price(usdt_try, 4)} | "
+                    f"Binance TL {format_price(binance_tl_price, 4)} | "
+                    f"Paribu {paribu_symbol} {format_price(paribu_tl_price, 4)} | "
                     f"Fark {diff_percent:+.2f}%"
                 )
                 send_telegram_message(session, telegram_token, telegram_chat_id, message)
