@@ -1,1 +1,40 @@
 # cezmi-bot
+
+## ENJ arbitraj botu (Paribu <-> Binance)
+
+Bu repo, Paribu (TL) en iyi alici (bid) ve Binance (USDT) en iyi satici (ask)
+fiyatlarini karsilastirir. Binance ENJ/USDT ask fiyatini USDT/TRY ask ile
+carpip TL'ye cevirir. Fark yuzde 4 ve uzerine cikarsa Telegram bildirimi atar
+ve fark her yuzde 1 degisimde tekrar bildirim gonderir. Her saniye terminale
+anlik fiyatlari ve farki yazar.
+
+### Kurulum
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+### Calistirma
+
+```bash
+export TELEGRAM_BOT_TOKEN="..."
+export TELEGRAM_CHAT_ID="..."
+
+python enj_arbitrage_bot.py
+```
+
+Alternatif: Degiskenleri kodun icinde yazmak istersen
+`enj_arbitrage_bot.py` dosyasindaki `TELEGRAM_BOT_TOKEN` ve
+`TELEGRAM_CHAT_ID` alanlarini doldurabilirsin.
+
+### Ortam Degiskenleri
+
+- `BINANCE_SYMBOL` (varsayilan: `ENJUSDT`)
+- `BINANCE_FX_SYMBOL` (varsayilan: `USDTTRY`)
+- `PARIBU_SYMBOL` (varsayilan: `enj_tl`, API kucuk harf olabilir)
+- `PARIBU_URLS` (virgulle ayrilmis, istege bagli)
+- `THRESHOLD_PERCENT` (varsayilan: `4`)
+- `POLL_INTERVAL_SECONDS` (varsayilan: `1`)
+
+Not: Telegram icin `TELEGRAM_BOT_TOKEN` ve `TELEGRAM_CHAT_ID` set edilmezse
+bildirim gonderilmez, sadece terminale yazar.
