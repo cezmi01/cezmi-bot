@@ -26,7 +26,7 @@ python enj_arbitrage_bot.py
 
 - `BINANCE_SYMBOL` (varsayilan: `ENJUSDT`)
 - `BINANCE_FX_SYMBOL` (varsayilan: `USDTTRY`)
-- `PARIBU_SYMBOL` (varsayilan: `ENJ_TL`)
+- `PARIBU_SYMBOL` (varsayilan: `enj_tl`, API kucuk harf olabilir)
 - `PARIBU_URLS` (virgulle ayrilmis, istege bagli)
 - `THRESHOLD_PERCENT` (varsayilan: `4`)
 - `POLL_INTERVAL_SECONDS` (varsayilan: `1`)

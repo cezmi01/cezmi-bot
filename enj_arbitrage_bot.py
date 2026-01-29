@@ -128,7 +128,7 @@ def send_telegram_message(
 def main() -> None:
     binance_symbol = os.getenv("BINANCE_SYMBOL", "ENJUSDT")
     binance_fx_symbol = os.getenv("BINANCE_FX_SYMBOL", "USDTTRY")
-    paribu_symbol = os.getenv("PARIBU_SYMBOL", "ENJ_TL")
+    paribu_symbol = os.getenv("PARIBU_SYMBOL", "enj_tl")
     paribu_urls_raw = os.getenv("PARIBU_URLS") or os.getenv("PARIBU_URL") or ""
     paribu_urls = [
         item.strip()
