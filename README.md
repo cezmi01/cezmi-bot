@@ -23,6 +23,10 @@ export TELEGRAM_CHAT_ID="..."
 python enj_arbitrage_bot.py
 ```
 
+Alternatif: Degiskenleri kodun icinde yazmak istersen
+`enj_arbitrage_bot.py` dosyasindaki `TELEGRAM_BOT_TOKEN` ve
+`TELEGRAM_CHAT_ID` alanlarini doldurabilirsin.
+
 ### Ortam Degiskenleri
 
 - `BINANCE_SYMBOL` (varsayilan: `ENJUSDT`)

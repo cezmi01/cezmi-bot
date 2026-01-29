@@ -34,6 +34,11 @@ PARIBU_ASK_FIELDS = (
     "sell_price",
 )
 
+# Optional: hardcode Telegram info here if you prefer not to use env vars.
+# Leave empty to use TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID from environment.
+TELEGRAM_BOT_TOKEN = ""
+TELEGRAM_CHAT_ID = ""
+
 
 def env_float(name: str, default: float) -> float:
     raw = os.getenv(name)
@@ -169,8 +174,8 @@ def main() -> None:
     poll_interval = env_float("POLL_INTERVAL_SECONDS", 1.0)
     threshold_percent = env_float("THRESHOLD_PERCENT", 4.0)
 
-    telegram_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-    telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+    telegram_token = os.getenv("TELEGRAM_BOT_TOKEN") or TELEGRAM_BOT_TOKEN
+    telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID") or TELEGRAM_CHAT_ID
     telegram_enabled = bool(telegram_token and telegram_chat_id)
 
     if not telegram_enabled:
