@@ -299,10 +299,19 @@ def extract_state_bybit(asset: Dict[str, Any]) -> Dict[str, Any]:
     return state
 
 
-def load_state(path: str) -> Dict[str, Any] | None:
+def load_state(path: str, expected_asset: str | None = None) -> Dict[str, Any] | None:
     try:
         with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return None
+        if expected_asset:
+            asset = (data.get("asset") or "").strip()
+            if not asset:
+                return None
+            if asset.upper() != expected_asset.upper():
+                return None
+        return data
     except Exception:
         return None
 
@@ -500,8 +509,10 @@ def main() -> None:
         )
         _bybit_time_offset_ms = get_bybit_server_time_offset_ms()
 
-    binance_state = load_state(BINANCE_STATE_FILE) if BINANCE_ENABLED else None
-    bybit_state = load_state(BYBIT_STATE_FILE) if BYBIT_ENABLED else None
+    binance_state = (
+        load_state(BINANCE_STATE_FILE, BINANCE_COIN) if BINANCE_ENABLED else None
+    )
+    bybit_state = load_state(BYBIT_STATE_FILE, BYBIT_COIN) if BYBIT_ENABLED else None
 
     next_allowed = {"binance": 0.0, "bybit": 0.0}
 
