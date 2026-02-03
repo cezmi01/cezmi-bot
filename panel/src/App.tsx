@@ -246,12 +246,19 @@ function badgeWalletType(badge: CellItem): 'hot' | 'cold' | null {
   return null
 }
 
-function getExplicitLinksForAsset(links: WalletLinks, exchangeId: string, asset: string) {
-  const entry = links[exchangeId]?.[asset]
-  const hot = entry?.hot ?? ['', '', '', '']
-  const cold = entry?.cold ?? ''
+function pickLink(value?: string, fallback?: string) {
+  if (value && value.trim()) return value
+  if (fallback && fallback.trim()) return fallback
+  return ''
+}
 
-  const hotNormalized = [0, 1, 2, 3].map((i) => normalizeUrl(hot[i as 0 | 1 | 2 | 3] ?? '')).filter(Boolean)
+function getExplicitLinksForAsset(links: WalletLinks, exchangeId: string, asset: string) {
+  const perAsset = links[exchangeId]?.[asset]
+  const perDefault = links[exchangeId]?.[DEFAULT_ASSET_KEY]
+  const hot = [0, 1, 2, 3].map((i) => pickLink(perAsset?.hot?.[i], perDefault?.hot?.[i]))
+  const cold = pickLink(perAsset?.cold, perDefault?.cold)
+
+  const hotNormalized = hot.map((value) => normalizeUrl(value)).filter(Boolean)
   const coldNormalized = normalizeUrl(cold)
 
   return {
@@ -272,14 +279,14 @@ function getWalletHrefForAsset(
   const perDefault = links[exchangeId]?.[DEFAULT_ASSET_KEY]
 
   if (walletType === 'cold') {
-    const raw = perAsset?.cold ?? perDefault?.cold ?? ''
-    const normalized = raw ? normalizeUrl(raw) : ''
+    const raw = pickLink(perAsset?.cold, perDefault?.cold)
+    const normalized = normalizeUrl(raw)
     return normalized || undefined
   }
 
   const idx = hotIndex ?? 0
-  const raw = perAsset?.hot?.[idx] ?? perDefault?.hot?.[idx] ?? ''
-  const normalized = raw ? normalizeUrl(raw) : ''
+  const raw = pickLink(perAsset?.hot?.[idx], perDefault?.hot?.[idx])
+  const normalized = normalizeUrl(raw)
   return normalized || undefined
 }
 
@@ -903,14 +910,17 @@ export default function App() {
                     {effectiveExchangeIds.map((id) => {
                       const cell = r.cells[id] ?? null
                       const explicit = getExplicitLinksForAsset(walletLinks, id, r.asset)
+                      const isEmptyCell = cell === null || (Array.isArray(cell) && cell.length === 0)
+                      const isBlockedCell = cell === 'x'
+                      const showX = isBlockedCell && !explicit.hasAny
                       return (
                         <td
                           key={id}
                           className="border-b border-white/10 px-4 py-5 align-middle"
                         >
-                          {cell === 'x' ? (
+                          {showX ? (
                             <span className="text-red-500 text-lg font-bold">X</span>
-                          ) : cell === null || (Array.isArray(cell) && cell.length === 0) ? (
+                          ) : isEmptyCell || isBlockedCell ? (
                             explicit.hasAny ? (
                               <div className="flex flex-wrap gap-2">
                                 {explicit.hot.map((href, i) => (
