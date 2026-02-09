@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-slate-950 text-slate-100 antialiased;
+  }
+}
+
+@layer components {
+  .panel-surface {
+    @apply rounded-2xl border border-white/10 bg-slate-900/30 shadow-soft backdrop-blur;
+  }
+  .panel-surface-2 {
+    @apply rounded-xl border border-white/10 bg-slate-900/20;
+  }
+  .muted {
+    @apply text-slate-300/80;
+  }
+}
