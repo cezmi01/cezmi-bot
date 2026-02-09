@@ -879,7 +879,7 @@ export default function App() {
                 <tr>
                   <th
                     className={clsx(
-                      'sticky left-0 top-0 z-30 w-36 border-b border-white/10 bg-slate-950/60 px-4 py-4 text-left text-sm font-semibold backdrop-blur',
+                      'sticky left-0 top-0 z-30 w-36 border-b border-white/10 border-r border-white/10 bg-slate-950/60 px-4 py-4 text-left text-sm font-semibold backdrop-blur',
                     )}
                   >
                     <span className="muted">Varlık</span>
@@ -887,7 +887,7 @@ export default function App() {
                   {effectiveExchanges.map((ex) => (
                     <th
                       key={ex.id}
-                      className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/60 px-4 py-4 text-left text-sm font-semibold backdrop-blur"
+                      className="sticky top-0 z-20 border-b border-white/10 border-r border-white/10 last:border-r-0 bg-slate-950/60 px-4 py-4 text-left text-sm font-semibold backdrop-blur"
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-slate-100">{ex.name}</span>
@@ -903,7 +903,7 @@ export default function App() {
               <tbody>
                 {filteredRows.map((r) => (
                   <tr key={r.asset} className="hover:bg-white/[0.03]">
-                    <td className="sticky left-0 z-10 w-36 border-b border-white/10 bg-slate-950/40 px-4 py-5 font-semibold text-slate-100 backdrop-blur">
+                    <td className="sticky left-0 z-10 w-36 border-b border-white/10 border-r border-white/10 bg-slate-950/40 px-4 py-5 font-semibold text-slate-100 backdrop-blur">
                       {r.asset}
                     </td>
 
@@ -916,13 +916,13 @@ export default function App() {
                       return (
                         <td
                           key={id}
-                          className="border-b border-white/10 px-4 py-5 align-middle"
+                          className="border-b border-white/10 border-r border-white/10 last:border-r-0 px-4 py-5 align-middle"
                         >
                           {showX ? (
                             <span className="text-red-500 text-lg font-bold">X</span>
                           ) : isEmptyCell || isBlockedCell ? (
                             explicit.hasAny ? (
-                              <div className="flex flex-wrap gap-2">
+                              <div className="flex flex-col items-start gap-2">
                                 {explicit.hot.map((href, i) => (
                                   <Badge
                                     key={`hot-${i}`}
@@ -939,7 +939,7 @@ export default function App() {
                               <span className="text-slate-500/80">—</span>
                             )
                           ) : (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-col items-start gap-2">
                               {(() => {
                                 let hotIdx: 0 | 1 | 2 | 3 = 0
                                 return cell.map((b, idx) => {
